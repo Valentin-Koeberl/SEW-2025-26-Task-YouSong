@@ -3,9 +3,7 @@ package at.yousong.yousong_api.song;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "songs")
 public class Song {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -15,8 +13,11 @@ public class Song {
     private String genre;
     private int length;
 
+
+    // Leerer Konstruktor (wichtig für JPA!)
     public Song() {}
 
+    // Neuer Konstruktor mit allen Parametern
     public Song(Long id, String title, String artist, String genre, int length) {
         this.id = id;
         this.title = title;
@@ -24,8 +25,6 @@ public class Song {
         this.genre = genre;
         this.length = length;
     }
-
-    // Getter und Setter
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
