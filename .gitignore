@@ -1,0 +1,80 @@
+######################################
+### 🌐 General OS & Editor Files ###
+######################################
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.bak
+
+######################################
+### 🟢 WebStorm / JetBrains IDEs ###
+######################################
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# WebStorm plugin-specific
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/shelf/
+.idea/**/httpRequests/
+.idea/**/dataSources/
+.idea/**/dataSources.local.xml
+.idea/**/libraries/
+
+######################################
+### ☕ Spring Boot / Java Backend ###
+######################################
+backend/target/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/*.iml
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot properties & secrets
+backend/src/main/resources/application-*.properties
+backend/src/main/resources/application-*.yml
+!backend/src/main/resources/application.properties
+!backend/src/main/resources/application.yml
+
+# Logs & temp files
+backend/logs/
+backend/*.log
+
+######################################
+### 📦 Maven ###
+######################################
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+######################################
+### 🟡 Vue 3 / Vite Frontend ###
+######################################
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+frontend/.DS_Store
+
+# Local environment variables (never commit secrets!)
+frontend/.env
+frontend/.env.*.local
+
+######################################
+### 🧪 Testing / Coverage ###
+######################################
+frontend/coverage/
+backend/coverage/
+.nyc_output/
+
+# H2 Database files
+data/
+*.mv.db
+*.trace.db
