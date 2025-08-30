@@ -3,6 +3,8 @@ package at.yousong.yousong_api.song;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -52,5 +54,16 @@ public class SongController {
             return ResponseEntity.notFound().build(); // HTTP 404 → Song existiert nicht
         }
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<Song>> searchSongs(@RequestParam String query) {
+        List<Song> songs = songRepository.findByTitleContainingIgnoreCaseOrArtistContainingIgnoreCase(query, query);
+
+        if (songs.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        return ResponseEntity.ok(songs);
+    }
+
 
 }

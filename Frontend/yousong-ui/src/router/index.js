@@ -6,12 +6,10 @@ import SongEdit from "../components/SongEdit.vue";
 const routes = [
     { path: "/", name: "songs", component: SongList },
     { path: "/create", name: "create", component: SongCreate },
-    { path: "/edit/:id", name: "edit", component: SongEdit, props: true }
+    { path: "/edit/:id", name: "edit", component: SongEdit, props: true },
 ];
 
-const router = createRouter({
+export default createRouter({
     history: createWebHistory(),
-    routes
+    routes,
 });
-
-export default router;
