@@ -2,7 +2,6 @@
   <div class="page">
     <h1>All Songs</h1>
 
-    <!-- Toolbar mit Suche & Add -->
     <div class="toolbar">
       <input
           type="text"
@@ -13,12 +12,10 @@
       <button class="btn primary" @click="goToCreate">Add Song</button>
     </div>
 
-    <!-- Meldung bei keiner Suche -->
     <p v-if="songs.length === 0 && searchQuery" class="no-results">
       No songs can be found. Please adjust your search.
     </p>
 
-    <!-- Songliste -->
     <div class="list">
       <div v-for="song in songs" :key="song.id" class="item">
         <div class="info">
@@ -26,7 +23,7 @@
             <strong class="title">{{ song.title }}</strong>
             <span class="genre">{{ song.genre }}</span>
           </div>
-          <div class="sub">{{ song.artist }}</div>
+          <div class="sub">{{ song.artistName ?? "Unknown Artist" }}</div>
           <div class="meta">{{ song.length }} sec</div>
         </div>
         <div class="actions">
@@ -78,107 +75,25 @@ onMounted(fetchAll);
 </script>
 
 <style scoped>
-.page {
-  max-width: 900px;
-  margin: 24px auto;
-  padding: 0 16px;
-}
+.page{ max-width: 900px; margin: 24px auto; padding: 0 16px; }
+h1{ margin: 0 0 14px; }
 
-h1 {
-  margin: 0 0 14px;
-}
+.toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+.toolbar input{ flex:1 1 auto; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:0.95rem; }
 
-.toolbar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 14px;
-}
+.btn{ padding:8px 12px; border:none; border-radius:6px; font-weight:600; cursor:pointer; }
+.btn.primary{ background:var(--brand); color:#fff; }
+.btn.edit{ background:#4e9eff; color:#fff; }
+.btn.delete{ background:#e74c3c; color:#fff; }
 
-.toolbar input {
-  flex: 1 1 auto;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.95rem;
-}
+.no-results{ color:#777; margin:8px 0 12px; font-style:italic; }
 
-.btn {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn.primary {
-  background: var(--brand);
-  color: #fff;
-}
-
-.btn.edit {
-  background: #4e9eff;
-  color: #fff;
-}
-
-.btn.delete {
-  background: #e74c3c;
-  color: #fff;
-}
-
-.no-results {
-  color: #777;
-  margin: 8px 0 12px;
-  font-style: italic;
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.title {
-  font-size: 1.05rem;
-}
-
-.genre {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid #d8efe5;
-  color: #166b4c;
-  background: #eef9f3;
-}
-
-.sub {
-  color: #333;
-}
-
-.meta {
-  color: #777;
-  font-size: 0.9rem;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+.list{ display:flex; flex-direction:column; gap:12px; }
+.item{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; justify-content:space-between; gap:12px; }
+.title-row{ display:flex; align-items:center; gap:8px; }
+.title{ font-size:1.05rem; }
+.genre{ font-size:.75rem; padding:2px 8px; border-radius:999px; border:1px solid #d8efe5; color:#166b4c; background:#eef9f3; }
+.sub{ color:#333; }
+.meta{ color:#777; font-size:.9rem; }
+.actions{ display:flex; gap:8px; align-items:center; }
 </style>
