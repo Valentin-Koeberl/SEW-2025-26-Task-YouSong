@@ -1,5 +1,6 @@
 package at.yousong.yousong_api.artist;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,13 +18,11 @@ public class ArtistController {
         this.artistRepository = artistRepository;
     }
 
-    // ✅ Alle Artists abrufen
     @GetMapping
     public ResponseEntity<List<Artist>> getAll() {
         return ResponseEntity.ok(artistRepository.findAll());
     }
 
-    // ✅ Artist nach ID abrufen
     @GetMapping("/{id}")
     public ResponseEntity<Artist> getById(@PathVariable Long id) {
         Optional<Artist> artist = artistRepository.findById(id);
@@ -31,12 +30,8 @@ public class ArtistController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // ✅ Artist anlegen
     @PostMapping
-    public ResponseEntity<Artist> create(@RequestBody Artist artist) {
-        if (artist.getName() == null || artist.getName().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<Artist> create(@Valid @RequestBody Artist artist) {
         if (artistRepository.existsByNameIgnoreCase(artist.getName())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
@@ -44,23 +39,19 @@ public class ArtistController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    // ✅ Artist aktualisieren
     @PutMapping("/{id}")
-    public ResponseEntity<Artist> update(@PathVariable Long id, @RequestBody Artist artist) {
+    public ResponseEntity<Artist> update(@PathVariable Long id, @Valid @RequestBody Artist artist) {
         Optional<Artist> existing = artistRepository.findById(id);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
         Artist updated = existing.get();
         updated.setName(artist.getName());
         updated.setDescription(artist.getDescription());
-
         artistRepository.save(updated);
         return ResponseEntity.ok(updated);
     }
 
-    // ✅ Artist löschen
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         if (!artistRepository.existsById(id)) {
