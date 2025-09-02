@@ -16,7 +16,7 @@
       No songs can be found. Please adjust your search.
     </p>
 
-    <div class="list">
+  <div class="list">
       <div v-for="song in songs" :key="song.id" class="item">
         <div class="info">
           <div class="title-row">
@@ -32,6 +32,13 @@
         </div>
       </div>
     </div>
+    <div class="pagination" v-if="!searchQuery">
+      <button class="btn" @click="goToFirst" :disabled="page === 0">First</button>
+      <button class="btn" @click="goToPrev" :disabled="page === 0">Prev</button>
+      <span class="page-info">Page {{ page + 1 }} / {{ totalPages }}</span>
+      <button class="btn" @click="goToNext" :disabled="page >= totalPages - 1">Next</button>
+      <button class="btn" @click="goToLast" :disabled="page >= totalPages - 1">Last</button>
+    </div>
   </div>
 </template>
 
@@ -42,11 +49,18 @@ import { useRouter } from "vue-router";
 
 const songs = ref([]);
 const searchQuery = ref("");
+const page = ref(0);
+const totalPages = ref(0);
+const pageSize = 5;
 const router = useRouter();
 
-const fetchAll = async () => {
-  const res = await axios.get("http://localhost:8080/api/songs");
-  songs.value = res.data;
+const fetchPage = async (p = 0) => {
+  const res = await axios.get("http://localhost:8080/api/songs", {
+    params: { page: p, size: pageSize },
+  });
+  songs.value = res.data.songs;
+  page.value = res.data.page;
+  totalPages.value = res.data.totalPages;
 };
 
 const searchSongs = async (q) => {
@@ -58,7 +72,7 @@ const searchSongs = async (q) => {
 
 const onSearch = async () => {
   const q = searchQuery.value.trim();
-  if (!q) return fetchAll();
+  if (!q) return fetchPage(0);
   await searchSongs(q);
 };
 
@@ -68,10 +82,15 @@ const editSong = (id) => router.push({ name: "edit", params: { id } });
 const deleteSong = async (id) => {
   if (!confirm("Are you sure you want to delete this song?")) return;
   await axios.delete(`http://localhost:8080/api/songs/${id}`);
-  songs.value = songs.value.filter((s) => s.id !== id);
+  await fetchPage(page.value);
 };
 
-onMounted(fetchAll);
+const goToFirst = () => fetchPage(0);
+const goToPrev = () => fetchPage(page.value - 1);
+const goToNext = () => fetchPage(page.value + 1);
+const goToLast = () => fetchPage(totalPages.value - 1);
+
+onMounted(() => fetchPage(0));
 </script>
 
 <style scoped>
@@ -96,4 +115,6 @@ h1{ margin: 0 0 14px; }
 .sub{ color:#333; }
 .meta{ color:#777; font-size:.9rem; }
 .actions{ display:flex; gap:8px; align-items:center; }
+.pagination{ display:flex; gap:8px; align-items:center; margin-top:16px; }
+.pagination .page-info{ margin:0 8px; }
 </style>

@@ -2,6 +2,8 @@ package at.yousong.yousong_api.song;
 
 import at.yousong.yousong_api.artist.Artist;
 import at.yousong.yousong_api.artist.ArtistRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,13 +45,16 @@ public class SongController {
         );
     }
 
+    public record SongPageDto(List<SongDto> songs, int page, int totalPages) {}
+
     // ===== READ =====
 
     @GetMapping
-    public ResponseEntity<List<SongDto>> getAll() {
-        List<SongDto> list = songRepository.findAll()
-                .stream().map(this::toDto).collect(Collectors.toList());
-        return ResponseEntity.ok(list);
+    public ResponseEntity<SongPageDto> getAll(@RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "5") int size) {
+        Page<Song> songPage = songRepository.findAll(PageRequest.of(page, size));
+        List<SongDto> list = songPage.getContent().stream().map(this::toDto).collect(Collectors.toList());
+        return ResponseEntity.ok(new SongPageDto(list, songPage.getNumber(), songPage.getTotalPages()));
     }
 
     @GetMapping("/{id}")
