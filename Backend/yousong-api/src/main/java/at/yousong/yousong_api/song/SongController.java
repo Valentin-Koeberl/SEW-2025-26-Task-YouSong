@@ -1,120 +1,87 @@
 package at.yousong.yousong_api.song;
 
-import at.yousong.yousong_api.artist.Artist;
-import at.yousong.yousong_api.artist.ArtistRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/songs")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173") // Vue-Dev-Server erlauben
 public class SongController {
 
+
     private final SongRepository songRepository;
-    private final ArtistRepository artistRepository;
 
-    public SongController(SongRepository songRepository, ArtistRepository artistRepository) {
+    public SongController(SongRepository songRepository) {
         this.songRepository = songRepository;
-        this.artistRepository = artistRepository;
     }
 
-    // ===== DTOs =====
-    public record SongDto(Long id, String title, String genre, int length, Long artistId, String artistName) {}
-    public static class SongRequest {
-        public String title;
-        public String genre;
-        public int length;
-        public Long artistId;
-    }
-
-    private SongDto toDto(Song s) {
-        return new SongDto(
-                s.getId(),
-                s.getTitle(),
-                s.getGenre(),
-                s.getLength(),
-                s.getArtist() != null ? s.getArtist().getId() : null,
-                s.getArtist() != null ? s.getArtist().getName() : null
-        );
-    }
-
-    // ===== READ =====
-
+    // ✅ GET - Alle Songs mit Paging
     @GetMapping
-    public ResponseEntity<List<SongDto>> getAll() {
-        List<SongDto> list = songRepository.findAll()
-                .stream().map(this::toDto).collect(Collectors.toList());
-        return ResponseEntity.ok(list);
+    public ResponseEntity<Page<Song>> getAllSongs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Song> songs = songRepository.findAll(pageable);
+        return ResponseEntity.ok(songs);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<SongDto> getById(@PathVariable Long id) {
+    @PostMapping
+    public ResponseEntity<Song> createSong(@RequestBody Song newSong) {
+        Song savedSong = songRepository.save(newSong);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedSong);
+    }
+
+
+    // ✅ PUT - Song aktualisieren
+    @PutMapping("/{id}")
+    public ResponseEntity<Song> updateSong(@PathVariable Long id, @RequestBody Song updatedSong) {
         return songRepository.findById(id)
-                .map(s -> ResponseEntity.ok(toDto(s)))
+                .map(song -> {
+                    song.setTitle(updatedSong.getTitle());
+                    song.setArtist(updatedSong.getArtist());
+                    song.setGenre(updatedSong.getGenre());
+                    song.setLength(updatedSong.getLength());
+                    Song savedSong = songRepository.save(song);
+                    return ResponseEntity.ok(savedSong);
+                })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<SongDto>> search(@RequestParam String query) {
-        List<SongDto> list = songRepository
-                .findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(query, query)
-                .stream().map(this::toDto).collect(Collectors.toList());
-        return ResponseEntity.ok(list);
-    }
-
-    // ===== CREATE =====
-
-    @PostMapping
-    public ResponseEntity<SongDto> create(@RequestBody SongRequest req) {
-        if (req.title == null || req.title.isBlank() || req.artistId == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        Optional<Artist> artistOpt = artistRepository.findById(req.artistId);
-        if (artistOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).build();
-        }
-        Song song = new Song(null, req.title, req.genre, req.length, artistOpt.get());
-        Song saved = songRepository.save(song);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(saved));
-    }
-
-    // ===== UPDATE =====
-
-    @PutMapping("/{id}")
-    public ResponseEntity<SongDto> update(@PathVariable Long id, @RequestBody SongRequest req) {
-        Optional<Song> existingOpt = songRepository.findById(id);
-        if (existingOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        Song song = existingOpt.get();
-        if (req.title != null) song.setTitle(req.title);
-        song.setGenre(req.genre);
-        song.setLength(req.length);
-
-        if (req.artistId != null) {
-            Optional<Artist> artistOpt = artistRepository.findById(req.artistId);
-            if (artistOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).build();
-            }
-            song.setArtist(artistOpt.get());
-        }
-        Song saved = songRepository.save(song);
-        return ResponseEntity.ok(toDto(saved));
-    }
-
-    // ===== DELETE =====
-
+    // ✅ DELETE - Song löschen
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!songRepository.existsById(id)) {
+    public ResponseEntity<Void> deleteSong(@PathVariable Long id) {
+        if (songRepository.existsById(id)) {
+            songRepository.deleteById(id);
+            return ResponseEntity.noContent().build();
+        } else {
             return ResponseEntity.notFound().build();
         }
-        songRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
     }
+
+    // ✅ Suche bleibt bestehen (ohne Paging)
+    @GetMapping("/search")
+    public ResponseEntity<List<Song>> searchSongs(@RequestParam String query) {
+        List<Song> songs = songRepository.findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(query, query);
+
+        if (songs.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        return ResponseEntity.ok(songs);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Song> getSongById(@PathVariable Long id) {
+        return songRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }

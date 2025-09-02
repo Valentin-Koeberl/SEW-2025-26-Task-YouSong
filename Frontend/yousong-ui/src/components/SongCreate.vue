@@ -8,7 +8,7 @@
 
         <Select
             label="Artist"
-            v-model="song.artistId"
+            v-model="artistId"
             :items="artists"
             value-key="id"
             display-key="name"
@@ -41,47 +41,59 @@ import Select from "./ui/Select.vue";
 
 const router = useRouter();
 const artists = ref([]);
-const song = ref({ title: "", artistId: "", genre: "", length: "" });
+const artistId = ref("");
+const song = ref({ title: "", genre: "", length: "" });
 const successMessage = ref("");
 
+// 🔹 Holt alle Artists
 const loadArtists = async () => {
   const res = await axios.get("http://localhost:8080/api/artists");
   artists.value = res.data;
 };
 
+// 🔹 Song erstellen (Artist korrekt mitsenden!)
 const createSong = async () => {
-  if (!song.value.artistId) {
+  if (!artistId.value) {
     alert("Please select an artist.");
     return;
   }
-  await axios.post("http://localhost:8080/api/songs", song.value);
+
+  await axios.post("http://localhost:8080/api/songs", {
+    title: song.value.title,
+    genre: song.value.genre,
+    length: song.value.length,
+    artist: { id: artistId.value } // 👈 WICHTIG!
+  });
+
   successMessage.value = "Song successfully created!";
-  song.value = { title: "", artistId: "", genre: "", length: "" };
+  song.value = { title: "", genre: "", length: "" };
+  artistId.value = "";
   setTimeout(() => router.push({ name: "songs" }), 1200);
 };
+
 const goBack = () => router.push({ name: "songs" });
 
 onMounted(loadArtists);
 </script>
 
 <style scoped>
-.wrap{ display:flex; justify-content:center; padding:24px 16px; }
-.card{
+.wrap { display:flex; justify-content:center; padding:24px 16px; }
+.card {
   background:#fff; border:1px solid var(--border); border-radius:16px;
   padding:24px; width:100%; max-width:520px; box-shadow:0 6px 16px rgba(0,0,0,.05);
 }
-h1{ margin:0 0 12px; font-size:1.4rem; }
-.form{ display:flex; flex-direction:column; gap:14px; }
-input{
+h1 { margin:0 0 12px; font-size:1.4rem; }
+.form { display:flex; flex-direction:column; gap:14px; }
+input {
   padding:12px 14px; border:1px solid var(--border); border-radius:12px; font-size:1rem;
   transition:all .25s ease; background:#f9fafb;
 }
-input:focus{
+input:focus {
   outline:none; border-color:#42b983; background:#fff; box-shadow:0 0 0 4px rgba(66,185,131,.15);
 }
-.actions{ display:flex; gap:10px; margin-top:6px; flex-wrap:wrap; }
-.btn{ padding:10px 16px; border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:all .2s; }
-.btn.primary{ background:var(--brand); color:#fff; }
-.btn.primary:hover{ background:#2ea673; }
-.success{ color:var(--brand); margin-top:10px; font-weight:700; text-align:center; }
+.actions { display:flex; gap:10px; margin-top:6px; flex-wrap:wrap; }
+.btn { padding:10px 16px; border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:all .2s; }
+.btn.primary { background:var(--brand); color:#fff; }
+.btn.primary:hover { background:#2ea673; }
+.success { color:var(--brand); margin-top:10px; font-weight:700; text-align:center; }
 </style>
