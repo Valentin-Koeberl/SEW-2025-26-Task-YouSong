@@ -4,9 +4,8 @@
       <h1>Edit Song</h1>
 
       <form @submit.prevent="updateSong" class="form" novalidate>
-        <label for="title">Title</label>
-        <input id="title" v-model.trim="song.title" :class="{ invalid: $v.song.title.$error }" placeholder="Enter song title" />
-        <p v-if="$v.song.title.$error" class="err">Title is required and max 200 chars.</p>
+        <label>Title</label>
+        <input v-model.trim="song.title" placeholder="Enter song title" />
 
         <Select
             label="Artist"
@@ -16,29 +15,18 @@
             display-key="name"
             placeholder="Select an artist"
         />
-        <p v-if="artistError" class="err">Please select an artist.</p>
 
-        <label for="genre">Genre</label>
-        <input id="genre" v-model.trim="song.genre" :class="{ invalid: $v.song.genre.$error }" placeholder="Enter song genre" />
-        <p v-if="$v.song.genre.$error" class="err">Genre max 80 chars.</p>
+        <label>Genre</label>
+        <input v-model.trim="song.genre" placeholder="Enter song genre" />
 
-        <label for="length">Length (seconds)</label>
-        <input id="length" v-model.number="song.length" type="number" min="1" :class="{ invalid: $v.song.length.$error }" placeholder="Enter length" />
-        <p v-if="$v.song.length.$error" class="err">Length must be at least 1.</p>
+        <label>Length (seconds)</label>
+        <input v-model.number="song.length" type="number" min="1" placeholder="Enter length" />
 
         <label>Upload Music</label>
         <input type="file" accept="audio/*" @change="onFileChange" />
 
-        <!-- Vorschau hochgeladene Musik -->
-        <audio v-if="song.musicData" controls preload="auto" :src="song.musicData"></audio>
-
-        <!-- Vorschau existierende Musik vom Server -->
-        <audio
-            v-else-if="song.id"
-            controls
-            preload="auto"
-            :src="`http://localhost:8080/api/songs/${route.params.id}/music`"
-        ></audio>
+        <audio v-if="song.musicData" controls :src="song.musicData"></audio>
+        <audio v-else controls :src="`http://localhost:8080/api/songs/${route.params.id}/music`"></audio>
 
         <div class="actions">
           <button type="submit" class="btn primary" :disabled="submitting">Save Changes</button>
@@ -54,31 +42,19 @@
 
 <script setup>
 import axios from "axios";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Select from "./ui/Select.vue";
-import useVuelidate from "@vuelidate/core";
-import { required, maxLength, minValue } from "@vuelidate/validators";
 
 const route = useRoute();
 const router = useRouter();
 
 const artists = ref([]);
 const artistId = ref("");
-const song = ref({ title: "", genre: "", length: null, musicData: "" });
+const song = ref({ title: "", genre: "", length: null, musicData: "", version: null });
 const successMessage = ref("");
 const serverError = ref("");
 const submitting = ref(false);
-
-const rules = computed(() => ({
-  song: {
-    title: { required, maxLength: maxLength(200) },
-    genre: { required, maxLength: maxLength(80) },
-    length: { required, minValue: minValue(1) }
-  }
-}));
-const $v = useVuelidate(rules, { song });
-const artistError = computed(() => !artistId.value);
 
 const loadArtists = async () => {
   const res = await axios.get("http://localhost:8080/api/artists");
@@ -87,14 +63,8 @@ const loadArtists = async () => {
 
 const loadSong = async () => {
   const res = await axios.get(`http://localhost:8080/api/songs/${route.params.id}`);
-  const data = res.data;
-  song.value = {
-    title: data.title ?? "",
-    genre: data.genre ?? "",
-    length: data.length ?? null,
-    musicData: data.musicData ?? ""
-  };
-  artistId.value = data.artist?.id ? Number(data.artist.id) : "";
+  song.value = res.data;
+  artistId.value = res.data.artist?.id ? Number(res.data.artist.id) : "";
 };
 
 const onFileChange = (e) => {
@@ -107,25 +77,20 @@ const onFileChange = (e) => {
 
 const updateSong = async () => {
   serverError.value = "";
-  await $v.value.$validate();
-  if ($v.value.$invalid || artistError.value) return;
-
   submitting.value = true;
   try {
     await axios.put(`http://localhost:8080/api/songs/${route.params.id}`, {
-      title: song.value.title,
-      genre: song.value.genre,
-      length: song.value.length,
-      artist: { id: Number(artistId.value) },
-      musicData: song.value.musicData
+      ...song.value,
+      artist: { id: Number(artistId.value) }
     });
     successMessage.value = "Song updated successfully!";
     setTimeout(() => router.push({ name: "songs" }), 1000);
   } catch (e) {
-    serverError.value =
-        e?.response?.data?.message ||
-        Object.values(e?.response?.data?.fieldErrors || {})[0] ||
-        "Failed to update song.";
+    if (e.response?.status === 409) {
+      serverError.value = "⚠️ Song wurde bereits von jemand anderem geändert. Bitte Seite neu laden!";
+    } else {
+      serverError.value = "Failed to update song.";
+    }
   } finally {
     submitting.value = false;
   }
@@ -137,6 +102,7 @@ onMounted(async () => {
   await Promise.all([loadArtists(), loadSong()]);
 });
 </script>
+
 
 <style scoped>
 .wrap{ display:flex; justify-content:center; padding:24px 16px; }

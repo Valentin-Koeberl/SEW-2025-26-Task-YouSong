@@ -2,7 +2,7 @@
   <div class="page">
     <h1>All Songs</h1>
 
-    <!-- Toolbar -->
+    <!-- Toolbar mit Suche + Button -->
     <div class="toolbar">
       <input
           type="text"
@@ -26,10 +26,11 @@
             <strong class="title">{{ song.title }}</strong>
             <span class="genre">{{ song.genre }}</span>
           </div>
-          <div class="sub">
-            {{ song.artist && song.artist.name ? song.artist.name : "Unknown Artist" }}
-          </div>
-          <div class="meta">{{ formatLength(song.length) }}</div>
+          <div class="sub">{{ song.artist?.name ?? "Unknown Artist" }}</div>
+          <div class="meta">{{ song.length }} sec</div>
+        </div>
+
+        <div class="player">
           <audio
               v-if="song.id"
               controls
@@ -37,6 +38,7 @@
               :src="`http://localhost:8080/api/songs/${song.id}/music`"
           ></audio>
         </div>
+
         <div class="actions">
           <button class="btn edit" @click="editSong(song.id)">Edit</button>
           <button class="btn delete" @click="deleteSong(song.id)">Delete</button>
@@ -63,52 +65,55 @@ import { useRouter } from "vue-router";
 const songs = ref([]);
 const searchQuery = ref("");
 const router = useRouter();
-
 const page = ref(0);
 const totalPages = ref(0);
 const size = 5;
 
-// API: Songs laden
 const fetchAll = async () => {
-  const res = await axios.get("http://localhost:8080/api/songs", {
-    params: { page: page.value, size }
-  });
-  songs.value = res.data?.content ?? [];
-  totalPages.value = res.data?.totalPages ?? 0;
-};
-
-// Suche
-const searchSongs = async (q) => {
-  const res = await axios.get("http://localhost:8080/api/songs/search", {
-    params: { query: q },
-  });
-  songs.value = Array.isArray(res.data) ? res.data : [];
-  totalPages.value = 1;
-  page.value = 0;
-};
-
-// Suche triggern
-const onSearch = async () => {
-  const q = searchQuery.value.trim();
-  if (!q) {
-    await fetchAll();
-  } else {
-    await searchSongs(q);
+  try {
+    const res = await axios.get("http://localhost:8080/api/songs", {
+      params: { page: page.value, size }
+    });
+    songs.value = res.data.content;
+    totalPages.value = res.data.totalPages;
+  } catch (e) {
+    console.error("Error fetching songs:", e);
   }
 };
 
-// Navigation
+const searchSongs = async (q) => {
+  try {
+    const res = await axios.get("http://localhost:8080/api/songs/search", {
+      params: { query: q }
+    });
+    songs.value = res.data;
+    totalPages.value = 1;
+    page.value = 0;
+  } catch (e) {
+    console.error("Search failed:", e);
+  }
+};
+
+const onSearch = async () => {
+  const q = searchQuery.value.trim();
+  if (!q) return fetchAll();
+  await searchSongs(q);
+};
+
 const goToCreate = () => router.push({ name: "create" });
 const editSong = (id) => router.push({ name: "edit", params: { id } });
 
-// Song löschen + Refresh
 const deleteSong = async (id) => {
   if (!confirm("Are you sure you want to delete this song?")) return;
-  await axios.delete(`http://localhost:8080/api/songs/${id}`);
-  if (searchQuery.value) {
-    await searchSongs(searchQuery.value);
-  } else {
-    await fetchAll();
+  try {
+    await axios.delete(`http://localhost:8080/api/songs/${id}`);
+    songs.value = songs.value.filter((s) => s.id !== id);
+  } catch (e) {
+    if (e.response?.status === 409) {
+      alert("⚠️ Song wurde gerade von jemand anderem bearbeitet oder gelöscht!");
+    } else {
+      alert("❌ Failed to delete song.");
+    }
   }
 };
 
@@ -134,13 +139,6 @@ const goToLast = async () => {
   await fetchAll();
 };
 
-// Länge formatieren → MM:SS
-const formatLength = (secs) => {
-  const minutes = Math.floor(secs / 60);
-  const seconds = secs % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
-
 onMounted(fetchAll);
 </script>
 
@@ -159,13 +157,14 @@ h1 { margin: 0 0 14px; }
 .no-results { color: #777; margin: 8px 0 12px; font-style: italic; }
 
 .list { display: flex; flex-direction: column; gap: 12px; }
-.item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; gap: 12px; }
+.item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .title-row { display: flex; align-items: center; gap: 8px; }
 .title { font-size: 1.05rem; }
 .genre { font-size: .75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid #d8efe5; color: #166b4c; background: #eef9f3; }
 .sub { color: #333; }
 .meta { color: #777; font-size: .9rem; }
 .actions { display: flex; gap: 8px; align-items: center; }
+
 .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 18px; }
 .pagination span { font-weight: 600; color: #333; }
 .pagination .btn:disabled { background: #ccc; cursor: not-allowed; }

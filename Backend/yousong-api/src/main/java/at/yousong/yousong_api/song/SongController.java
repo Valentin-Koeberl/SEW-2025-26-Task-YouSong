@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/songs")
@@ -28,7 +29,7 @@ public class SongController {
         this.artistRepository = artistRepository;
     }
 
-    // ✅ Alle Songs (ohne Musikdaten)
+    // ---- LISTE (nur Metadaten, ohne musicData) ----
     @GetMapping
     public ResponseEntity<Page<SongProjection>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
@@ -39,7 +40,7 @@ public class SongController {
         return ResponseEntity.ok(songs);
     }
 
-    // ✅ Einzelner Song inkl. Musikdaten (für Edit)
+    // ---- DETAIL (inkl. musicData & version – für Editor) ----
     @GetMapping("/{id}")
     public ResponseEntity<Song> getSongById(@PathVariable @Min(1) Long id) {
         return songRepository.findById(id)
@@ -47,7 +48,7 @@ public class SongController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ✅ Musik-Streaming
+    // ---- STREAM (liefert nur Bytes; CORS + Content-Type korrekt) ----
     @GetMapping("/{id}/music")
     public ResponseEntity<byte[]> getSongMusic(@PathVariable Long id) {
         return songRepository.findById(id)
@@ -73,7 +74,7 @@ public class SongController {
                         .body(new byte[0]));
     }
 
-    // ✅ Song erstellen
+    // ---- CREATE ----
     @PostMapping
     public ResponseEntity<Song> createSong(@Valid @RequestBody Song newSong) {
         Artist artist = artistRepository.findById(newSong.getArtist().getId())
@@ -83,24 +84,38 @@ public class SongController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedSong);
     }
 
-    // ✅ Song aktualisieren
+    // ---- UPDATE (strikte Versionsprüfung -> 409 bei Mismatch) ----
     @PutMapping("/{id}")
-    public ResponseEntity<Song> updateSong(@PathVariable @Min(1) Long id, @Valid @RequestBody Song updatedSong) {
+    public ResponseEntity<?> updateSong(@PathVariable @Min(1) Long id, @Valid @RequestBody Song updatedSong) {
+        if (updatedSong.getVersion() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Version is required for updates.");
+        }
+
         return songRepository.findById(id)
-                .map(song -> {
-                    song.setTitle(updatedSong.getTitle());
-                    song.setGenre(updatedSong.getGenre());
-                    song.setLength(updatedSong.getLength());
+                .map(existing -> {
+                    if (!Objects.equals(existing.getVersion(), updatedSong.getVersion())) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body("Dieser Song wurde inzwischen geändert. Bitte lade die Seite neu.");
+                    }
+
+                    existing.setTitle(updatedSong.getTitle());
+                    existing.setGenre(updatedSong.getGenre());
+                    existing.setLength(updatedSong.getLength());
+                    existing.setMusicData(updatedSong.getMusicData());
+
                     Artist artist = artistRepository.findById(updatedSong.getArtist().getId())
                             .orElseThrow(() -> new RuntimeException("Artist not found"));
-                    song.setArtist(artist);
-                    song.setMusicData(updatedSong.getMusicData());
-                    return ResponseEntity.ok(songRepository.save(song));
+                    existing.setArtist(artist);
+
+                    // WICHTIG: Version NICHT manuell setzen – JPA erhöht sie selbst
+                    Song saved = songRepository.saveAndFlush(existing);
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ✅ Song löschen
+    // ---- DELETE ----
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSong(@PathVariable @Min(1) Long id) {
         if (!songRepository.existsById(id)) {
@@ -110,7 +125,7 @@ public class SongController {
         return ResponseEntity.noContent().build();
     }
 
-    // ✅ Suche nach Songs (ohne Musikdaten)
+    // ---- SEARCH (nur Metadaten) ----
     @GetMapping("/search")
     public ResponseEntity<List<SongProjection>> searchSongs(
             @RequestParam
