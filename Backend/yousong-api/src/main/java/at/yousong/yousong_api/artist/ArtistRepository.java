@@ -8,12 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
-
-    // Suche (Teilstring)
     List<Artist> findByNameContainingIgnoreCase(String name);
-
-    // Exakte Suche (für DataLoader praktisch)
     Optional<Artist> findByNameIgnoreCase(String name);
-
     boolean existsByNameIgnoreCase(String name);
 }

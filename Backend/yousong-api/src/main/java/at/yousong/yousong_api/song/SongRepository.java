@@ -7,7 +7,5 @@ import java.util.List;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
-
-    // Suche im Titel ODER im Artist-Namen (case-insensitive)
     List<Song> findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(String title, String artistName);
 }

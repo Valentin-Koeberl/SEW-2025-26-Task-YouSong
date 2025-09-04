@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile({"default"}) // läuft im Default-Profil. Entferne/ändere nach Bedarf.
+@Profile({"default"})
 public class ArtistDataLoader implements CommandLineRunner {
 
     private final ArtistRepository artistRepository;

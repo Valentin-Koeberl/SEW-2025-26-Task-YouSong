@@ -26,8 +26,10 @@
             <strong class="title">{{ song.title }}</strong>
             <span class="genre">{{ song.genre }}</span>
           </div>
-          <div class="sub">{{ song.artist?.name ?? "Unknown Artist" }}</div>
-          <div class="meta">{{ song.length }} sec</div>
+          <div class="sub">
+            {{ song.artist && song.artist.name ? song.artist.name : "Unknown Artist" }}
+          </div>
+          <div class="meta">{{ formatLength(song.length) }}</div>
         </div>
         <div class="actions">
           <button class="btn edit" @click="editSong(song.id)">Edit</button>
@@ -60,39 +62,60 @@ const page = ref(0);
 const totalPages = ref(0);
 const size = 5;
 
-// 🔹 Fetch Songs mit Paging
+// 🔹 API: Songs mit Paging laden
 const fetchAll = async () => {
-  const res = await axios.get("http://localhost:8080/api/songs", {
-    params: { page: page.value, size }
-  });
-  songs.value = res.data.content;
-  totalPages.value = res.data.totalPages;
+  try {
+    const res = await axios.get("http://localhost:8080/api/songs", {
+      params: { page: page.value, size }
+    });
+    songs.value = res.data?.content ?? [];
+    totalPages.value = res.data?.totalPages ?? 0;
+  } catch (e) {
+    console.error("Error fetching songs:", e);
+    songs.value = [];
+    totalPages.value = 0;
+  }
 };
 
-// 🔹 Suche ohne Paging
+// 🔹 API: Suche ohne Paging
 const searchSongs = async (q) => {
-  const res = await axios.get("http://localhost:8080/api/songs/search", {
-    params: { query: q },
-  });
-  songs.value = res.data;
-  totalPages.value = 1;
-  page.value = 0;
+  try {
+    const res = await axios.get("http://localhost:8080/api/songs/search", {
+      params: { query: q },
+    });
+    songs.value = Array.isArray(res.data) ? res.data : [];
+    totalPages.value = 1;
+    page.value = 0;
+  } catch (e) {
+    console.error("Search failed:", e);
+    songs.value = [];
+    totalPages.value = 0;
+  }
 };
 
-// 🔹 Trigger Suche oder Paging
+// 🔹 Suche triggern
 const onSearch = async () => {
   const q = searchQuery.value.trim();
-  if (!q) return fetchAll();
-  await searchSongs(q);
+  if (!q) {
+    await fetchAll();
+  } else {
+    await searchSongs(q);
+  }
 };
 
+// 🔹 Navigation
 const goToCreate = () => router.push({ name: "create" });
 const editSong = (id) => router.push({ name: "edit", params: { id } });
 
+// 🔹 Song löschen + Refresh
 const deleteSong = async (id) => {
   if (!confirm("Are you sure you want to delete this song?")) return;
   await axios.delete(`http://localhost:8080/api/songs/${id}`);
-  songs.value = songs.value.filter((s) => s.id !== id);
+  if (searchQuery.value) {
+    await searchSongs(searchQuery.value);
+  } else {
+    await fetchAll();
+  }
 };
 
 // 🔹 Pagination-Methoden
@@ -115,6 +138,13 @@ const goToFirst = async () => {
 const goToLast = async () => {
   page.value = totalPages.value - 1;
   await fetchAll();
+};
+
+// 🔹 Länge formatieren → MM:SS
+const formatLength = (secs) => {
+  const minutes = Math.floor(secs / 60);
+  const seconds = secs % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
 onMounted(fetchAll);

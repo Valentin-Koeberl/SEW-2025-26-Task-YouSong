@@ -17,7 +17,7 @@ public class Song {
     @Size(max = 200, message = "Title must be at most 200 characters.")
     private String title;
 
-    @NotBlank(message = "Genre must not be blank.")                  // <— GENRE jetzt verpflichtend
+    @NotBlank(message = "Genre must not be blank.")
     @Size(max = 80, message = "Genre must be at most 80 characters.")
     private String genre;
 
@@ -26,7 +26,7 @@ public class Song {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id", nullable = false, foreignKey = @ForeignKey(name = "fk_song_artist"))
-    @NotNull(message = "Artist must be provided.")                    // <— Artist muss vorhanden sein
+    @NotNull(message = "Artist must be provided.")
     private Artist artist;
 
     public Song() {}
