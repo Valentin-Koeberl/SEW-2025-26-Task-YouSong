@@ -26,16 +26,14 @@ public class DataLoader implements CommandLineRunner {
             return; // schon Daten vorhanden
         }
 
-        // Artists sicherstellen (holen oder anlegen)
         Artist ed = getOrCreateArtist("Ed Sheeran", "UK singer-songwriter");
         Artist queen = getOrCreateArtist("Queen", "Legendary British rock band");
         Artist taylor = getOrCreateArtist("Taylor Swift", "US singer-songwriter and producer");
 
-        // Beispiel-Songs mit gültigem Artist speichern
-        songRepository.save(new Song(null, "Shape of You", "Pop", 233, ed));
-        songRepository.save(new Song(null, "Perfect", "Pop", 263, ed));
-        songRepository.save(new Song(null, "Bohemian Rhapsody", "Rock", 354, queen));
-        songRepository.save(new Song(null, "Love Story", "Country Pop", 235, taylor));
+        songRepository.save(new Song(null, "Shape of You", "Pop", 233, ed, null));
+        songRepository.save(new Song(null, "Perfect", "Pop", 263, ed, null));
+        songRepository.save(new Song(null, "Bohemian Rhapsody", "Rock", 354, queen, null));
+        songRepository.save(new Song(null, "Love Story", "Country Pop", 235, taylor, null));
     }
 
     private Artist getOrCreateArtist(String name, String description) {

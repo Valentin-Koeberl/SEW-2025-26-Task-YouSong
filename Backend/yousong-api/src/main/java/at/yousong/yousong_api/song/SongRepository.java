@@ -1,5 +1,7 @@
 package at.yousong.yousong_api.song;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -7,5 +9,10 @@ import java.util.List;
 
 @Repository
 public interface SongRepository extends JpaRepository<Song, Long> {
-    List<Song> findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(String title, String artistName);
+
+    // Suche (Titel oder Artist, unabhängig von Groß-/Kleinschreibung)
+    List<SongProjection> findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(String title, String artistName);
+
+    // Für Paging der Projection ohne musicData
+    Page<SongProjection> findAllProjectedBy(Pageable pageable);
 }

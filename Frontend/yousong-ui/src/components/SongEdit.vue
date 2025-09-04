@@ -15,7 +15,6 @@
             value-key="id"
             display-key="name"
             placeholder="Select an artist"
-            search-placeholder="Search artists..."
         />
         <p v-if="artistError" class="err">Please select an artist.</p>
 
@@ -24,15 +23,22 @@
         <p v-if="$v.song.genre.$error" class="err">Genre max 80 chars.</p>
 
         <label for="length">Length (seconds)</label>
-        <input
-            id="length"
-            v-model.number="song.length"
-            type="number"
-            min="1"
-            :class="{ invalid: $v.song.length.$error }"
-            placeholder="Enter length"
-        />
+        <input id="length" v-model.number="song.length" type="number" min="1" :class="{ invalid: $v.song.length.$error }" placeholder="Enter length" />
         <p v-if="$v.song.length.$error" class="err">Length must be at least 1.</p>
+
+        <label>Upload Music</label>
+        <input type="file" accept="audio/*" @change="onFileChange" />
+
+        <!-- Vorschau hochgeladene Musik -->
+        <audio v-if="song.musicData" controls preload="auto" :src="song.musicData"></audio>
+
+        <!-- Vorschau existierende Musik vom Server -->
+        <audio
+            v-else-if="song.id"
+            controls
+            preload="auto"
+            :src="`http://localhost:8080/api/songs/${route.params.id}/music`"
+        ></audio>
 
         <div class="actions">
           <button type="submit" class="btn primary" :disabled="submitting">Save Changes</button>
@@ -59,7 +65,7 @@ const router = useRouter();
 
 const artists = ref([]);
 const artistId = ref("");
-const song = ref({ title: "", genre: "", length: null });
+const song = ref({ title: "", genre: "", length: null, musicData: "" });
 const successMessage = ref("");
 const serverError = ref("");
 const submitting = ref(false);
@@ -85,10 +91,18 @@ const loadSong = async () => {
   song.value = {
     title: data.title ?? "",
     genre: data.genre ?? "",
-    length: data.length ?? null
+    length: data.length ?? null,
+    musicData: data.musicData ?? ""
   };
-  // Artist im Dropdown vorauswählen (als Zahl!)
   artistId.value = data.artist?.id ? Number(data.artist.id) : "";
+};
+
+const onFileChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => song.value.musicData = reader.result;
+  reader.readAsDataURL(file);
 };
 
 const updateSong = async () => {
@@ -102,7 +116,8 @@ const updateSong = async () => {
       title: song.value.title,
       genre: song.value.genre,
       length: song.value.length,
-      artist: { id: Number(artistId.value) }
+      artist: { id: Number(artistId.value) },
+      musicData: song.value.musicData
     });
     successMessage.value = "Song updated successfully!";
     setTimeout(() => router.push({ name: "songs" }), 1000);

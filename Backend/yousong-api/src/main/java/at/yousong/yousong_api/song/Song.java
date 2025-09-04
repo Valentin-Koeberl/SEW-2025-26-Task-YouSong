@@ -13,30 +13,35 @@ public class Song {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Title must not be blank.")
-    @Size(max = 200, message = "Title must be at most 200 characters.")
+    @NotBlank
+    @Size(max = 200)
     private String title;
 
-    @NotBlank(message = "Genre must not be blank.")
-    @Size(max = 80, message = "Genre must be at most 80 characters.")
+    @NotBlank
+    @Size(max = 80)
     private String genre;
 
-    @Min(value = 1, message = "Length must be at least 1 second.")
+    @Min(1)
     private int length;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id", nullable = false, foreignKey = @ForeignKey(name = "fk_song_artist"))
-    @NotNull(message = "Artist must be provided.")
+    @NotNull
     private Artist artist;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String musicData;
 
     public Song() {}
 
-    public Song(Long id, String title, String genre, int length, Artist artist) {
+    public Song(Long id, String title, String genre, int length, Artist artist, String musicData) {
         this.id = id;
         this.title = title;
         this.genre = genre;
         this.length = length;
         this.artist = artist;
+        this.musicData = musicData;
     }
 
     public Long getId() { return id; }
@@ -53,4 +58,7 @@ public class Song {
 
     public Artist getArtist() { return artist; }
     public void setArtist(Artist artist) { this.artist = artist; }
+
+    public String getMusicData() { return musicData; }
+    public void setMusicData(String musicData) { this.musicData = musicData; }
 }

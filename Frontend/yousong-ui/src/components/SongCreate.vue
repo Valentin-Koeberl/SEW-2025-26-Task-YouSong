@@ -15,7 +15,6 @@
             value-key="id"
             display-key="name"
             placeholder="Select an artist"
-            search-placeholder="Search artists..."
         />
         <p v-if="artistError" class="err">Please select an artist.</p>
 
@@ -26,6 +25,17 @@
         <label>Length (seconds)</label>
         <input v-model.number="song.length" type="number" min="1" :class="{ invalid: $v.song.length.$error }" placeholder="Enter length" />
         <p v-if="$v.song.length.$error" class="err">Length must be at least 1.</p>
+
+        <label>Upload Music</label>
+        <input type="file" accept="audio/*" @change="onFileChange" />
+
+        <!-- Audio-Vorschau nur, wenn Musik hochgeladen wurde -->
+        <audio
+            v-if="song.musicData"
+            controls
+            preload="auto"
+            :src="song.musicData"
+        ></audio>
 
         <div class="actions">
           <button type="submit" class="btn primary" :disabled="submitting">Save Song</button>
@@ -50,7 +60,7 @@ import { required, maxLength, minValue } from "@vuelidate/validators";
 const router = useRouter();
 const artists = ref([]);
 const artistId = ref("");
-const song = ref({ title: "", genre: "", length: null });
+const song = ref({ title: "", genre: "", length: null, musicData: "" });
 const successMessage = ref("");
 const serverError = ref("");
 const submitting = ref(false);
@@ -64,12 +74,19 @@ const rules = computed(() => ({
 }));
 
 const $v = useVuelidate(rules, { song });
-
 const artistError = computed(() => !artistId.value);
 
 const loadArtists = async () => {
   const res = await axios.get("http://localhost:8080/api/artists");
   artists.value = res.data;
+};
+
+const onFileChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => song.value.musicData = reader.result;
+  reader.readAsDataURL(file);
 };
 
 const createSong = async () => {
@@ -83,10 +100,11 @@ const createSong = async () => {
       title: song.value.title,
       genre: song.value.genre,
       length: song.value.length,
-      artist: { id: Number(artistId.value) }
+      artist: { id: Number(artistId.value) },
+      musicData: song.value.musicData
     });
     successMessage.value = "Song successfully created!";
-    song.value = { title: "", genre: "", length: null };
+    song.value = { title: "", genre: "", length: null, musicData: "" };
     artistId.value = "";
     setTimeout(() => router.push({ name: "songs" }), 1000);
   } catch (e) {
