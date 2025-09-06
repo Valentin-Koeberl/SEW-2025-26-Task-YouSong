@@ -2,6 +2,8 @@ package at.yousong.yousong_api.song;
 
 import at.yousong.yousong_api.artist.Artist;
 import at.yousong.yousong_api.artist.ArtistRepository;
+import at.yousong.yousong_api.user.Benutzer;
+import at.yousong.yousong_api.user.BenutzerRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -13,10 +15,12 @@ public class DataLoader implements CommandLineRunner {
 
     private final SongRepository songRepository;
     private final ArtistRepository artistRepository;
+    private final BenutzerRepository benutzerRepository;
 
-    public DataLoader(SongRepository songRepository, ArtistRepository artistRepository) {
+    public DataLoader(SongRepository songRepository, ArtistRepository artistRepository, BenutzerRepository benutzerRepository) {
         this.songRepository = songRepository;
         this.artistRepository = artistRepository;
+        this.benutzerRepository = benutzerRepository;
     }
 
     @Override
@@ -30,10 +34,12 @@ public class DataLoader implements CommandLineRunner {
         Artist queen = getOrCreateArtist("Queen", "Legendary British rock band");
         Artist taylor = getOrCreateArtist("Taylor Swift", "US singer-songwriter and producer");
 
-        songRepository.save(new Song(null, "Shape of You", "Pop", 233, ed, null));
-        songRepository.save(new Song(null, "Perfect", "Pop", 263, ed, null));
-        songRepository.save(new Song(null, "Bohemian Rhapsody", "Rock", 354, queen, null));
-        songRepository.save(new Song(null, "Love Story", "Country Pop", 235, taylor, null));
+        Benutzer owner = benutzerRepository.findByUsername("hugo").orElse(null);
+
+        songRepository.save(new Song(null, "Shape of You", "Pop", 233, ed, null, owner));
+        songRepository.save(new Song(null, "Perfect", "Pop", 263, ed, null, owner));
+        songRepository.save(new Song(null, "Bohemian Rhapsody", "Rock", 354, queen, null, owner));
+        songRepository.save(new Song(null, "Love Story", "Country Pop", 235, taylor, null, owner));
     }
 
     private Artist getOrCreateArtist(String name, String description) {

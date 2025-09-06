@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -18,42 +19,54 @@ public class ArtistController {
         this.artistRepository = artistRepository;
     }
 
+    // 🔹 GET: Alle Artists abrufen
     @GetMapping
-    public ResponseEntity<List<Artist>> getAll() {
+    public ResponseEntity<List<Artist>> getAllArtists() {
         return ResponseEntity.ok(artistRepository.findAll());
     }
 
+    // 🔹 GET: Einzelnen Artist nach ID abrufen
     @GetMapping("/{id}")
-    public ResponseEntity<Artist> getById(@PathVariable Long id) {
-        Optional<Artist> artist = artistRepository.findById(id);
-        return artist.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<Artist> getArtistById(@PathVariable Long id) {
+        return artistRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
+    // 🔹 POST: Neuen Artist erstellen
     @PostMapping
-    public ResponseEntity<Artist> create(@Valid @RequestBody Artist artist) {
+    public ResponseEntity<?> createArtist(@Valid @RequestBody Artist artist) {
         if (artistRepository.existsByNameIgnoreCase(artist.getName())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Artist with this name already exists!");
         }
-        Artist saved = artistRepository.save(artist);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        Artist savedArtist = artistRepository.save(artist);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedArtist);
     }
 
+    // 🔹 PUT: Bestehenden Artist aktualisieren
     @PutMapping("/{id}")
-    public ResponseEntity<Artist> update(@PathVariable Long id, @Valid @RequestBody Artist artist) {
+    public ResponseEntity<?> updateArtist(
+            @PathVariable Long id,
+            @Valid @RequestBody Artist artistDetails
+    ) {
         Optional<Artist> existing = artistRepository.findById(id);
+
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        Artist updated = existing.get();
-        updated.setName(artist.getName());
-        updated.setDescription(artist.getDescription());
-        artistRepository.save(updated);
-        return ResponseEntity.ok(updated);
+
+        Artist artist = existing.get();
+        artist.setName(artistDetails.getName());
+        artist.setDescription(artistDetails.getDescription());
+
+        Artist updatedArtist = artistRepository.save(artist);
+        return ResponseEntity.ok(updatedArtist);
     }
 
+    // 🔹 DELETE: Artist löschen
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteArtist(@PathVariable Long id) {
         if (!artistRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }

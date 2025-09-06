@@ -1,6 +1,8 @@
 package at.yousong.yousong_api.song;
 
 import at.yousong.yousong_api.artist.Artist;
+import at.yousong.yousong_api.user.Benutzer;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -34,19 +36,24 @@ public class Song {
     @Column(columnDefinition = "LONGTEXT")
     private String musicData;
 
-    // ⚡ NEU: Optimistic Locking
     @Version
     private Long version;
+
+    // Wichtig: nicht serialisieren
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    @JsonIgnore
+    private Benutzer owner;
 
     public Song() {}
 
     public Song(Long id, String title, String genre, int length, Artist artist, String musicData) {
-        this.id = id;
-        this.title = title;
-        this.genre = genre;
-        this.length = length;
-        this.artist = artist;
-        this.musicData = musicData;
+        this.id = id; this.title = title; this.genre = genre; this.length = length; this.artist = artist; this.musicData = musicData;
+    }
+
+    public Song(Long id, String title, String genre, int length, Artist artist, String musicData, Benutzer owner) {
+        this(id, title, genre, length, artist, musicData);
+        this.owner = owner;
     }
 
     public Long getId() { return id; }
@@ -69,4 +76,7 @@ public class Song {
 
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+
+    public Benutzer getOwner() { return owner; }
+    public void setOwner(Benutzer owner) { this.owner = owner; }
 }
