@@ -1,19 +1,14 @@
 <template>
   <div class="wrap">
-    <!-- ❌ Nicht eingeloggt: Nur Hinweis, KEINE Inputs/Buttons -->
     <div v-if="!isLoggedIn" class="card locked">
       <h1>Add New Song</h1>
-      <p class="locked-msg">
-        You must be logged in to create songs.
-      </p>
+      <p class="locked-msg">You must be logged in to create songs.</p>
     </div>
 
-    <!-- ✅ Eingeloggt: Formular sichtbar -->
     <div v-else class="card">
       <h1>Add New Song</h1>
 
       <form @submit.prevent="createSong" class="form" novalidate>
-        <!-- Title -->
         <label>Title</label>
         <input
             v-model.trim="song.title"
@@ -23,7 +18,6 @@
         />
         <p v-if="$v.song.title.$error" class="err">Title is required and max 200 chars.</p>
 
-        <!-- Artist Dropdown -->
         <Select
             label="Artist"
             v-model="artistId"
@@ -35,7 +29,6 @@
         />
         <p v-if="showArtistError" class="err">Please select an artist.</p>
 
-        <!-- Custom Artist Box -->
         <div v-if="isCustomSelected" class="custom-artist">
           <label class="custom-label">New artist name</label>
           <div class="custom-row">
@@ -62,17 +55,31 @@
           <p class="hint">Max 200 characters. Duplicates will be detected.</p>
         </div>
 
-        <!-- Genre -->
-        <label>Genre</label>
-        <input
-            v-model.trim="song.genre"
-            :class="{ invalid: $v.song.genre.$error }"
-            placeholder="Enter song genre"
-            @blur="$v.song.genre.$touch()"
-        />
-        <p v-if="$v.song.genre.$error" class="err">Genre is required and max 80 chars.</p>
+        <label>Genres</label>
+        <div class="chips-input" :class="{ invalid: $v.song.genres.$error }">
+          <div class="chips">
+            <span v-for="g in song.genres" :key="g" class="chip">
+              {{ g }}
+              <button type="button" class="x" @click="removeGenre(g)" aria-label="Remove">×</button>
+            </span>
+            <input
+                ref="genreRef"
+                v-model.trim="genreDraft"
+                list="genre-suggestions"
+                class="chip-input"
+                placeholder="Type & press Enter…"
+                @keydown.enter.prevent="commitGenre()"
+                @keydown.tab.prevent="commitGenre(true)"
+                @keydown="onGenreKeydown"
+                @blur="commitGenre()"
+            />
+          </div>
+          <datalist id="genre-suggestions">
+            <option v-for="g in DEFAULT_GENRES" :key="g" :value="g" />
+          </datalist>
+        </div>
+        <p v-if="$v.song.genres.$error" class="err">Please add at least one genre.</p>
 
-        <!-- Length -->
         <label>Length (seconds)</label>
         <input
             v-model.number="song.length"
@@ -84,26 +91,17 @@
         />
         <p v-if="$v.song.length.$error" class="err">Length must be at least 1.</p>
 
-        <!-- File Upload -->
         <label>Upload Music</label>
         <input type="file" accept="audio/*" @change="onFileChange" />
 
-        <!-- Audio Preview -->
-        <audio
-            v-if="song.musicData"
-            controls
-            preload="auto"
-            :src="song.musicData"
-        ></audio>
+        <audio v-if="song.musicData" controls preload="auto" :src="song.musicData"></audio>
 
-        <!-- Buttons -->
         <div class="actions">
           <button type="submit" class="btn primary" :disabled="submitting">Save Song</button>
           <button type="button" class="btn" @click="goBack">Cancel</button>
         </div>
       </form>
 
-      <!-- Feedback -->
       <p v-if="successMessage" class="success">{{ successMessage }}</p>
       <p v-if="serverError" class="server-error">{{ serverError }}</p>
     </div>
@@ -118,6 +116,11 @@ import Select from "./ui/Select.vue";
 import useVuelidate from "@vuelidate/core";
 import { required, maxLength, minValue } from "@vuelidate/validators";
 import { useAuth } from "../composables/useAuth";
+
+const DEFAULT_GENRES = [
+  "Pop","Rock","Hip Hop","R&B","Electronic","Classical","Jazz","Country",
+  "Metal","Reggae","Folk","Blues","Indie","K-Pop","Soundtrack","Acoustic"
+];
 
 const router = useRouter();
 const { isLoggedIn } = useAuth();
@@ -143,46 +146,61 @@ const customArtistValid = computed(() => {
   return n.length >= 2 && n.length <= 200;
 });
 
-// Song: Version braucht es beim Create nicht, Server vergibt sie selbst
 const song = ref({
   title: "",
-  genre: "",
+  genres: [],
   length: null,
   musicData: "",
   version: null
 });
+
+const genreDraft = ref("");
+const genreRef = ref(null);
+
+function commitGenre(allowEmpty = false) {
+  const raw = genreDraft.value.trim();
+  if (!raw && !allowEmpty) return;
+  if (raw) {
+    const val = raw.slice(0, 80);
+    if (!song.value.genres.includes(val)) song.value.genres.push(val);
+  }
+  genreDraft.value = "";
+}
+function onGenreKeydown(e) {
+  if (e.isComposing) return; // IME-Schutz
+  if (e.key === "," || e.code === "Comma") {
+    e.preventDefault();
+    commitGenre();
+  }
+}
+function removeGenre(g) {
+  song.value.genres = song.value.genres.filter(x => x !== g);
+}
 
 const successMessage = ref("");
 const serverError = ref("");
 const submitting = ref(false);
 let redirectTimer = null;
 
-// Validation Rules
 const rules = computed(() => ({
   song: {
     title: { required, maxLength: maxLength(200) },
-    genre: { required, maxLength: maxLength(80) },
+    genres: { required },
     length: { required, minValue: minValue(1) }
   }
 }));
 const $v = useVuelidate(rules, { song });
 
-// Artist-Validierung: gültig nur, wenn eine echte ID (Zahl) gewählt ist
-const validArtistSelected = computed(() => {
-  const n = Number(artistId.value);
-  return Number.isFinite(n);
-});
+const validArtistSelected = computed(() => Number.isFinite(Number(artistId.value)));
 const showArtistError = computed(
     () => (artistTouched.value || submitAttempted.value) && !validArtistSelected.value
 );
 
-// Lade Artists (nur wenn eingeloggt)
 const loadArtists = async () => {
   const res = await api.get("/api/artists");
   artists.value = res.data;
 };
 
-// Musik-Upload → Base64 speichern
 const onFileChange = (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -209,7 +227,6 @@ const createArtist = async () => {
   try {
     const res = await api.post("/api/artists", { name, description: "" });
     const newArtist = res.data;
-    // Liste aktualisieren und Auswahl setzen
     artists.value = [...artists.value, newArtist];
     artistId.value = newArtist.id;
     customArtistName.value = "";
@@ -217,7 +234,6 @@ const createArtist = async () => {
   } catch (e) {
     const status = e?.response?.status;
     if (status === 409) {
-      // existiert bereits → Liste neu laden & auswählen
       await loadArtists();
       const found = artists.value.find(a => a.name?.toLowerCase() === name.toLowerCase());
       if (found) {
@@ -250,7 +266,6 @@ const createSong = async () => {
 
   await $v.value.$validate();
 
-  // Artist muss echte ID sein
   if (!validArtistSelected.value) return;
   if ($v.value.$invalid) return;
 
@@ -263,8 +278,7 @@ const createSong = async () => {
 
     successMessage.value = "Song successfully created! Redirecting…";
 
-    // Formular & Validierung zurücksetzen
-    song.value = { title: "", genre: "", length: null, musicData: "", version: null };
+    song.value = { title: "", genres: [], length: null, musicData: "", version: null };
     artistId.value = "";
     customArtistName.value = "";
     customArtistError.value = "";
@@ -272,6 +286,7 @@ const createSong = async () => {
     artistTouched.value = false;
     submitAttempted.value = false;
     $v.value.$reset();
+    genreDraft.value = "";
 
     clearTimeout(redirectTimer);
     redirectTimer = setTimeout(() => {
@@ -346,6 +361,18 @@ input.invalid { border-color: #e74c3c; box-shadow: 0 0 0 4px rgba(231, 76, 60, 0
 .custom-label { font-weight: 600; margin-bottom: 6px; display: inline-block; }
 .custom-row {
   display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+}
+
+.chips-input { border: 1px solid var(--border); border-radius: 12px; padding: 8px; background:#f9fafb; }
+.chips-input.invalid { border-color: #e74c3c; box-shadow: 0 0 0 4px rgba(231,76,60,.15); }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 6px 10px; background:#eef9f3; color:#166b4c; border:1px solid #d8efe5; border-radius:999px; font-weight:700; font-size:.9rem;
+}
+.chip .x { background:transparent; border:none; cursor:pointer; font-weight:900; color:#0a5b3c; }
+.chip-input {
+  min-width: 140px; flex:1 1 160px; border:none; background:transparent; outline:none; padding:6px 8px; font-size:1rem;
 }
 
 .server-error {

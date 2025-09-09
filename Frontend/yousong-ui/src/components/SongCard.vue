@@ -20,7 +20,9 @@ const lengthMMSS = computed(() => {
       <p class="song-artist">by {{ song.artist?.name || 'Unknown Artist' }}</p>
     </div>
     <div class="song-meta">
-      <span class="song-genre">{{ song.genre }}</span>
+      <div class="song-genres">
+        <span v-for="g in (song.genres || [])" :key="g" class="g">{{ g }}</span>
+      </div>
       <span class="song-length">{{ lengthMMSS }}</span>
     </div>
   </article>
@@ -46,7 +48,8 @@ const lengthMMSS = computed(() => {
 .song-info { margin-bottom: 14px; }
 .song-title { font-size: 1.15rem; font-weight: 700; color: #111; margin-bottom: 6px; }
 .song-artist { font-size: 0.95rem; color: #666; }
-.song-meta { display: flex; justify-content: space-between; font-size: 0.9rem; }
-.song-genre { background: #eef3ff; color: #3a68ff; padding: 3px 8px; border-radius: 6px; font-weight: 500; }
+.song-meta { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 0.9rem; }
+.song-genres { display:flex; gap:6px; flex-wrap:wrap; }
+.g { background: #eef3ff; color: #3a68ff; padding: 3px 8px; border-radius: 6px; font-weight: 500; }
 .song-length { color: #555; font-weight: 600; }
 </style>

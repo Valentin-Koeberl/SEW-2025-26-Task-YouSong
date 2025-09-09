@@ -19,7 +19,6 @@ public class BenutzerDataLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Sicherstellen, dass der Standard-User "hugo" existiert (Passwort: "password")
         String username = "hugo";
         if (!benutzerRepository.existsByUsernameIgnoreCase(username)) {
             String hash = encoder.encode("password");

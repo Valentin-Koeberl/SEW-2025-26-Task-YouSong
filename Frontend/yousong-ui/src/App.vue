@@ -1,17 +1,14 @@
 <template>
   <div>
     <header class="topbar">
-      <!-- LINKS (fix) -->
       <div class="left">
         <span class="brand">YouSong</span>
         <router-link :to="{ name: 'songs' }" class="link">Songs</router-link>
         <router-link :to="{ name: 'create' }" class="link">Add</router-link>
       </div>
 
-      <!-- MITTE (flex) – nur der Platzhalter, damit links/rechts fix sind -->
       <div class="middle"></div>
 
-      <!-- RECHTS (fix) -->
       <div class="right">
         <template v-if="isLoggedIn">
           <span class="user">Hi, {{ username }}</span>
@@ -22,13 +19,14 @@
         </template>
       </div>
 
-      <!-- SUCHE: absolut in der Header-Mitte, unabhängig von Links/Rechts -->
       <div class="search-wrap">
-        <input
-            class="search"
-            v-model.trim="searchState.query"
-            placeholder="Search by title or artist…"
-        />
+        <div class="search-tools">
+          <input
+              class="search"
+              v-model.trim="searchState.query"
+              placeholder="Search by title, artist or genre…"
+          />
+        </div>
       </div>
     </header>
 
@@ -46,7 +44,7 @@ import { useSearch } from "./composables/useSearch";
 
 const router = useRouter();
 const { state, isLoggedIn, logout } = useAuth();
-const { state: searchState } = useSearch();
+const { state: searchState, DEFAULT_GENRES, toggleGenre, clearGenres } = useSearch();
 
 const username = computed(() => state.username || "Guest");
 function onLogout() {
@@ -70,7 +68,6 @@ html, body, #app {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
 }
 
-/* 3-Spalten-Header: auto | 1fr | auto  */
 .topbar {
   position: sticky; top: 0; z-index: 10;
   display: grid;
@@ -82,14 +79,11 @@ html, body, #app {
   border-bottom: 1px solid var(--border);
 }
 
-/* LINKS: fix */
 .left { display: flex; align-items: center; gap: 10px; }
 .brand { font-weight: 800; }
 
-/* MITTE: flex – leerer Platzhalter, damit die rechte Spalte fix bleibt */
 .middle { min-height: 40px; }
 
-/* RECHTS: fix */
 .right { display: flex; align-items: center; gap: 10px; }
 
 .link {
@@ -105,23 +99,30 @@ html, body, #app {
 
 .user { color:#333; font-weight: 600; }
 
-/* ABSOLUT ZENTRIERTE SUCHE – relativ zur gesamten Topbar */
 .search-wrap {
   position: absolute;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  pointer-events: none; /* blockiert nix darunter */
+  pointer-events: none;
+  width: min(92vw, 860px);
+}
+
+.search-tools{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
 }
 
 .search {
-  width: clamp(240px, 40vw, 520px);
+  width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 0.95rem;
   background: #f9fafb;
-  pointer-events: auto; /* Klicks erlauben */
 }
 .search:focus {
   outline: none;
@@ -130,9 +131,42 @@ html, body, #app {
   box-shadow: 0 0 0 4px rgba(66,185,131,.15);
 }
 
+.genre-chips{
+  display:flex; align-items:center; gap: 6px;
+  overflow: auto;
+  max-width: 360px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.genre-chips::-webkit-scrollbar{ height:8px; }
+.genre-chips::-webkit-scrollbar-thumb{ background:#e5e7eb; border-radius:999px; }
+
+.chip{
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .85rem;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.chip:hover{ background:#f6f8fb; border-color:#dfe7ee; }
+.chip.active{ background:#eef9f3; border-color:#ccefe1; color:#166b4c; box-shadow: 0 4px 10px rgba(31,143,95,.12); }
+.chip.clear{ border-style: dashed; }
+
 .main { padding: 16px; }
 
-/* Responsive: unter 720px stacken wir und die Suche geht in den Fluss */
+@media (max-width: 960px) {
+  .search-tools{
+    grid-template-columns: 1fr;
+  }
+  .genre-chips{ max-width: 100%; }
+}
+
 @media (max-width: 720px) {
   .topbar {
     grid-template-columns: 1fr;
@@ -142,10 +176,10 @@ html, body, #app {
     position: static;
     translate: 0 0;
     pointer-events: auto;
-    display: flex; justify-content: center;
+    display: grid; gap: 8px;
     order: 2;
+    width: 100%;
   }
-  .search { width: 100%; max-width: 560px; }
   .left  { order: 1; }
   .right { order: 3; justify-content: flex-end; }
 }

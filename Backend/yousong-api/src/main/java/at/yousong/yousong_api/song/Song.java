@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Song {
@@ -17,12 +19,16 @@ public class Song {
     private Long id;
 
     @NotBlank(message = "Title must not be blank.")
-    @Size(max = 200, message = "Title must be at most 200 characters.")
+    @Column(nullable = false, length = 200)
     private String title;
 
-    @NotBlank(message = "Genre must not be blank.")
-    @Size(max = 80, message = "Genre must be at most 80 characters.")
-    private String genre;
+    @ElementCollection
+    @CollectionTable(
+            name = "song_genres",
+            joinColumns = @JoinColumn(name = "song_id", foreignKey = @ForeignKey(name = "fk_song_genres_song"))
+    )
+    @Column(name = "genre", nullable = false, length = 80)
+    private List<String> genres = new ArrayList<>();
 
     @Min(value = 1, message = "Length must be at least 1 second.")
     private int length;
@@ -39,7 +45,6 @@ public class Song {
     @Version
     private Long version;
 
-    // Wichtig: nicht serialisieren
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     @JsonIgnore
@@ -47,12 +52,12 @@ public class Song {
 
     public Song() {}
 
-    public Song(Long id, String title, String genre, int length, Artist artist, String musicData) {
-        this.id = id; this.title = title; this.genre = genre; this.length = length; this.artist = artist; this.musicData = musicData;
+    public Song(Long id, String title, List<String> genres, int length, Artist artist, String musicData) {
+        this.id = id; this.title = title; this.genres = genres; this.length = length; this.artist = artist; this.musicData = musicData;
     }
 
-    public Song(Long id, String title, String genre, int length, Artist artist, String musicData, Benutzer owner) {
-        this(id, title, genre, length, artist, musicData);
+    public Song(Long id, String title, List<String> genres, int length, Artist artist, String musicData, Benutzer owner) {
+        this(id, title, genres, length, artist, musicData);
         this.owner = owner;
     }
 
@@ -62,8 +67,8 @@ public class Song {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
-    public String getGenre() { return genre; }
-    public void setGenre(String genre) { this.genre = genre; }
+    public List<String> getGenres() { return genres; }
+    public void setGenres(List<String> genres) { this.genres = genres; }
 
     public int getLength() { return length; }
     public void setLength(int length) { this.length = length; }

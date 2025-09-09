@@ -33,7 +33,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = auth.substring(7);
             try {
                 String username = jwtUtil.validateAndExtractUsername(token);
-                // Existiert der User?
                 benutzerRepository.findByUsername(username).ifPresent(u -> {
                     var authToken = new UsernamePasswordAuthenticationToken(
                             username, null, AuthorityUtils.NO_AUTHORITIES

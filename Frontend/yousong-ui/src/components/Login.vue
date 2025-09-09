@@ -37,7 +37,6 @@
 
       <div class="sep"><span>or</span></div>
 
-      <!-- Register -->
       <div class="reg">
         <h2 class="reg-title">Create an account</h2>
         <label class="lbl">Username</label>
@@ -97,7 +96,6 @@ async function onSubmit() {
 
   submitting.value = true;
   try {
-    // x-www-form-urlencoded → behebt 415
     const body = new URLSearchParams();
     body.append("username", username.value);
     body.append("password", password.value);
@@ -109,7 +107,6 @@ async function onSubmit() {
     const token = extractToken(res);
     const name = res?.data?.username || username.value;
 
-    // 🔁 Reaktiver Store → Header aktualisiert sofort
     authLogin({ username: name, token });
 
     router.push({ name: "songs" });
@@ -139,7 +136,6 @@ async function onRegister() {
 
     regMsg.value = "Account created! Signing you in…";
 
-    // Direkt einloggen
     username.value = regUser.value;
     password.value = regPass.value;
     await onSubmit();

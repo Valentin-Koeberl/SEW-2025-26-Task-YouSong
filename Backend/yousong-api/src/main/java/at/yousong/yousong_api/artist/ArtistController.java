@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,13 +20,11 @@ public class ArtistController {
         this.artistRepository = artistRepository;
     }
 
-    // 🔹 GET: Alle Artists abrufen
     @GetMapping
     public ResponseEntity<List<Artist>> getAllArtists() {
         return ResponseEntity.ok(artistRepository.findAll());
     }
 
-    // 🔹 GET: Einzelnen Artist nach ID abrufen
     @GetMapping("/{id}")
     public ResponseEntity<Artist> getArtistById(@PathVariable Long id) {
         return artistRepository.findById(id)
@@ -33,7 +32,6 @@ public class ArtistController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 🔹 POST: Neuen Artist erstellen
     @PostMapping
     public ResponseEntity<?> createArtist(@Valid @RequestBody Artist artist) {
         if (artistRepository.existsByNameIgnoreCase(artist.getName())) {
@@ -44,7 +42,6 @@ public class ArtistController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedArtist);
     }
 
-    // 🔹 PUT: Bestehenden Artist aktualisieren
     @PutMapping("/{id}")
     public ResponseEntity<?> updateArtist(
             @PathVariable Long id,
@@ -64,13 +61,17 @@ public class ArtistController {
         return ResponseEntity.ok(updatedArtist);
     }
 
-    // 🔹 DELETE: Artist löschen
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteArtist(@PathVariable Long id) {
+    public ResponseEntity<?> deleteArtist(@PathVariable Long id) {
         if (!artistRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
-        artistRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        try {
+            artistRepository.deleteById(id);
+            return ResponseEntity.noContent().build();
+        } catch (DataIntegrityViolationException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Artist cannot be deleted because it is referenced by songs.");
+        }
     }
 }

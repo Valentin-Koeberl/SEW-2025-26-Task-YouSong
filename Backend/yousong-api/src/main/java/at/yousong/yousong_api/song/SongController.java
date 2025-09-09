@@ -12,15 +12,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.*;
 import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/songs")
@@ -38,7 +36,6 @@ public class SongController {
         this.benutzerRepository = benutzerRepository;
     }
 
-    // ---- LISTE (nur Metadaten, ohne musicData) ----
     @GetMapping
     public ResponseEntity<Page<SongProjection>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
@@ -49,7 +46,45 @@ public class SongController {
         return ResponseEntity.ok(songs);
     }
 
-    // ---- DETAIL (DTO; inkl. musicData & version) ----
+    @GetMapping("/catalog")
+    public ResponseEntity<Page<SongProjection>> catalog(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam MultiValueMap<String, String> params) {
+
+        // Query normalisieren (nur bei >=2 Zeichen wird gesucht)
+        String query = (q == null || q.trim().length() < 2) ? null : q.trim();
+
+        // Genres akzeptieren in allen üblichen Formen:
+        // ?genres=Rock&genres=Pop  |  ?genres[]=Rock&genres[]=Pop  |  ?genresCsv=Rock,Pop  |  ?genres=Rock,Pop
+        List<String> raw = new ArrayList<>();
+        String csv = params.getFirst("genresCsv");
+        if (csv != null) raw.add(csv);
+        raw.addAll(params.getOrDefault("genres", List.of()));
+        raw.addAll(params.getOrDefault("genres[]", List.of()));
+
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        for (String token : raw) {
+            if (token == null) continue;
+            for (String s : token.split(",")) {
+                String t = s == null ? "" : s.trim();
+                if (!t.isEmpty()) set.add(t.toLowerCase());
+            }
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"));
+
+        if (set.isEmpty()) {
+            Page<SongProjection> res = songRepository.catalogNoGenres(query, pageable);
+            return ResponseEntity.ok(res);
+        } else {
+            List<String> genres = new ArrayList<>(set);
+            Page<SongProjection> res = songRepository.catalogWithGenres(query, genres, genres.size(), pageable);
+            return ResponseEntity.ok(res);
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SongDetailDto> getSongById(@PathVariable @Min(1) Long id) {
         return songRepository.findById(id)
@@ -64,7 +99,7 @@ public class SongController {
         return new SongDetailDto(
                 s.getId(),
                 s.getTitle(),
-                s.getGenre(),
+                s.getGenres(),
                 s.getLength(),
                 s.getVersion(),
                 aDto,
@@ -72,7 +107,7 @@ public class SongController {
         );
     }
 
-    // ---- STREAM (liefert nur Bytes; CORS + Content-Type korrekt) ----
+    // ---- STREAM ----
     @GetMapping("/{id}/music")
     public ResponseEntity<byte[]> getSongMusic(@PathVariable Long id) {
         return songRepository.findById(id)
@@ -98,26 +133,37 @@ public class SongController {
                         .body(new byte[0]));
     }
 
-    // ---- CREATE (Owner setzen) ----
     @PostMapping
     public ResponseEntity<?> createSong(@Valid @RequestBody Song newSong) {
         Benutzer current = getCurrentUser();
         if (current == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Please login to create a song.");
         }
-        Artist artist = artistRepository.findById(newSong.getArtist().getId())
+
+        Long artistId = Optional.ofNullable(newSong.getArtist()).map(Artist::getId).orElse(null);
+        if (artistId == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Artist is required."));
+        }
+        Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new RuntimeException("Artist not found"));
+
+        List<String> normGenres = normalizeGenres(newSong.getGenres());
+        if (normGenres.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Please provide at least one valid genre (1–80 chars)."));
+        }
+
         newSong.setArtist(artist);
         newSong.setOwner(current);
+        newSong.setGenres(normGenres);
+
         Song savedSong = songRepository.save(newSong);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(savedSong));
     }
 
-    // ---- UPDATE (nur Besitzer; Version prüfen) ----
     @PutMapping("/{id}")
     public ResponseEntity<?> updateSong(@PathVariable @Min(1) Long id, @Valid @RequestBody Song updatedSong) {
         if (updatedSong.getVersion() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Version is required for updates.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message","Version is required for updates."));
         }
         Benutzer current = getCurrentUser();
         if (current == null) {
@@ -134,11 +180,20 @@ public class SongController {
             }
 
             existing.setTitle(updatedSong.getTitle());
-            existing.setGenre(updatedSong.getGenre());
             existing.setLength(updatedSong.getLength());
             existing.setMusicData(updatedSong.getMusicData());
 
-            Artist artist = artistRepository.findById(updatedSong.getArtist().getId())
+            List<String> normGenres = normalizeGenres(updatedSong.getGenres());
+            if (normGenres.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Please provide at least one valid genre (1–80 chars)."));
+            }
+            existing.setGenres(normGenres);
+
+            Long aId = Optional.ofNullable(updatedSong.getArtist()).map(Artist::getId).orElse(null);
+            if (aId == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Artist is required."));
+            }
+            Artist artist = artistRepository.findById(aId)
                     .orElseThrow(() -> new RuntimeException("Artist not found"));
             existing.setArtist(artist);
 
@@ -147,7 +202,6 @@ public class SongController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // ---- DELETE (nur Besitzer) ----
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteSong(@PathVariable @Min(1) Long id) {
         Benutzer current = getCurrentUser();
@@ -165,16 +219,13 @@ public class SongController {
         return ResponseEntity.noContent().build();
     }
 
-    // ---- SEARCH (nur Metadaten) ----
     @GetMapping("/search")
     public ResponseEntity<List<SongProjection>> searchSongs(
             @RequestParam
             @NotBlank(message = "Query must not be blank.")
             @Size(min = 2, max = 200, message = "Query must be between 2 and 200 characters.")
             String query) {
-        return ResponseEntity.ok(
-                songRepository.findByTitleContainingIgnoreCaseOrArtist_NameContainingIgnoreCase(query, query)
-        );
+        return ResponseEntity.ok(songRepository.searchProjected(query));
     }
 
     private Benutzer getCurrentUser() {
@@ -183,5 +234,18 @@ public class SongController {
         String username = auth.getName();
         if (username == null || "anonymousUser".equals(username)) return null;
         return benutzerRepository.findByUsername(username).orElse(null);
+    }
+
+    private List<String> normalizeGenres(List<String> in) {
+        if (in == null) return List.of();
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        for (String g : in) {
+            if (g == null) continue;
+            String t = g.trim();
+            if (t.isEmpty()) continue;
+            if (t.length() > 80) t = t.substring(0, 80);
+            set.add(t);
+        }
+        return new ArrayList<>(set);
     }
 }

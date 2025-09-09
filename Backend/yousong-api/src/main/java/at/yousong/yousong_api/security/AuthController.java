@@ -34,7 +34,6 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout() {
-        // Bei JWT: Client löscht Token lokal. (Optional: Cookie invalidieren)
         return ResponseEntity.ok(Map.of("message", "Logged out"));
     }
 }

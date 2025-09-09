@@ -9,6 +9,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Component
 @Order(20)
 public class DataLoader implements CommandLineRunner {
@@ -27,7 +29,7 @@ public class DataLoader implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (songRepository.count() > 0) {
-            return; // schon Daten vorhanden
+            return;
         }
 
         Artist ed = getOrCreateArtist("Ed Sheeran", "UK singer-songwriter");
@@ -36,10 +38,10 @@ public class DataLoader implements CommandLineRunner {
 
         Benutzer owner = benutzerRepository.findByUsername("hugo").orElse(null);
 
-        songRepository.save(new Song(null, "Shape of You", "Pop", 233, ed, null, owner));
-        songRepository.save(new Song(null, "Perfect", "Pop", 263, ed, null, owner));
-        songRepository.save(new Song(null, "Bohemian Rhapsody", "Rock", 354, queen, null, owner));
-        songRepository.save(new Song(null, "Love Story", "Country Pop", 235, taylor, null, owner));
+        songRepository.save(new Song(null, "Shape of You", List.of("Pop"), 233, ed, null, owner));
+        songRepository.save(new Song(null, "Perfect", List.of("Pop"), 263, ed, null, owner));
+        songRepository.save(new Song(null, "Bohemian Rhapsody", List.of("Rock"), 354, queen, null, owner));
+        songRepository.save(new Song(null, "Love Story", List.of("Country Pop","Pop"), 235, taylor, null, owner));
     }
 
     private Artist getOrCreateArtist(String name, String description) {

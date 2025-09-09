@@ -30,21 +30,22 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Login & Registrierung & H2 frei
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                         .requestMatchers("/h2/**").permitAll()
 
-                        // Lesen ist öffentlich
                         .requestMatchers(HttpMethod.GET, "/api/songs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
 
-                        // Schreiben bei Songs nur für eingeloggte Nutzer
                         .requestMatchers(HttpMethod.POST, "/api/songs/**").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/songs/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/songs/**").authenticated()
 
-                        // alles andere erlauben (ggf. enger fassen)
+                        .requestMatchers(HttpMethod.POST,   "/api/artists/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT,    "/api/artists/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/artists/**").authenticated()
+
+
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)

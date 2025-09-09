@@ -2,7 +2,6 @@
   <div class="select-root" ref="root" :class="{ 'is-open': open }">
     <label v-if="label" class="select-label" :for="inputId">{{ label }}</label>
 
-    <!-- Anchor / Button -->
     <button
         :id="inputId"
         type="button"
@@ -18,7 +17,6 @@
       <span class="select-chevron" aria-hidden="true">▾</span>
     </button>
 
-    <!-- Popover Panel -->
     <teleport to="body">
       <div
           v-if="open"
@@ -72,12 +70,10 @@ const activeIndex = ref(0);
 const root = ref(null);
 const listRef = ref(null);
 
-// ids for a11y
 const uid = Math.random().toString(36).slice(2);
 const inputId = `select-input-${uid}`;
 const panelId = `select-panel-${uid}`;
 
-// compute selected item
 const selectedItem = computed(() =>
     props.items.find((i) => i[props.valueKey] === props.modelValue)
 );
@@ -226,7 +222,6 @@ onBeforeUnmount(() => {
 .select-value.is-placeholder{ color:#888; }
 .select-chevron{ margin-left: 12px; color:#888; }
 
-/* Panel */
 .select-panel{
   position: absolute;
   z-index: 1000;
