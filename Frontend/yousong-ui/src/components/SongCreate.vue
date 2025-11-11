@@ -146,12 +146,12 @@ const customArtistValid = computed(() => {
   return n.length >= 2 && n.length <= 200;
 });
 
+// Wichtig: version/id NICHT im Create-Body mitschicken
 const song = ref({
   title: "",
   genres: [],
   length: null,
-  musicData: "",
-  version: null
+  musicData: ""
 });
 
 const genreDraft = ref("");
@@ -271,14 +271,20 @@ const createSong = async () => {
 
   submitting.value = true;
   try {
-    await api.post("/api/songs", {
-      ...song.value,
+    // Expliziter Payload OHNE id/version
+    const payload = {
+      title: song.value.title,
+      genres: [...song.value.genres],
+      length: song.value.length,
+      ...(song.value.musicData ? { musicData: song.value.musicData } : {}),
       artist: { id: Number(artistId.value) }
-    });
+    };
+
+    await api.post("/api/songs", payload);
 
     successMessage.value = "Song successfully created! Redirecting…";
 
-    song.value = { title: "", genres: [], length: null, musicData: "", version: null };
+    song.value = { title: "", genres: [], length: null, musicData: "" };
     artistId.value = "";
     customArtistName.value = "";
     customArtistError.value = "";

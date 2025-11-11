@@ -24,7 +24,7 @@
           <input
               class="search"
               v-model.trim="searchState.query"
-              placeholder="Search by title, artist or genre…"
+              placeholder="Search by title or artist or genres…"
           />
         </div>
       </div>
@@ -44,9 +44,10 @@ import { useSearch } from "./composables/useSearch";
 
 const router = useRouter();
 const { state, isLoggedIn, logout } = useAuth();
-const { state: searchState, DEFAULT_GENRES, toggleGenre, clearGenres } = useSearch();
+const { state: searchState } = useSearch();
 
 const username = computed(() => state.username || "Guest");
+
 function onLogout() {
   logout();
   router.push({ name: "login" });
@@ -131,40 +132,12 @@ html, body, #app {
   box-shadow: 0 0 0 4px rgba(66,185,131,.15);
 }
 
-.genre-chips{
-  display:flex; align-items:center; gap: 6px;
-  overflow: auto;
-  max-width: 360px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-}
-.genre-chips::-webkit-scrollbar{ height:8px; }
-.genre-chips::-webkit-scrollbar-thumb{ background:#e5e7eb; border-radius:999px; }
-
-.chip{
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  background: #fff;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: .85rem;
-  white-space: nowrap;
-  transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
-}
-.chip:hover{ background:#f6f8fb; border-color:#dfe7ee; }
-.chip.active{ background:#eef9f3; border-color:#ccefe1; color:#166b4c; box-shadow: 0 4px 10px rgba(31,143,95,.12); }
-.chip.clear{ border-style: dashed; }
-
 .main { padding: 16px; }
 
 @media (max-width: 960px) {
-  .search-tools{
+  .search-tools {
     grid-template-columns: 1fr;
   }
-  .genre-chips{ max-width: 100%; }
 }
 
 @media (max-width: 720px) {

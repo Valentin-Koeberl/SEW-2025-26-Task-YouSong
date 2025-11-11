@@ -2,10 +2,6 @@
   <div class="page">
     <h1>All Songs</h1>
 
-    <div v-if="songs.length === 0" class="empty">
-      No songs can be found. Please adjust your search.
-    </div>
-
     <div class="vlist">
       <SongItem
           v-for="song in songs"
@@ -37,8 +33,6 @@ import { ref, onMounted, watch, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../composables/useAuth";
 import { useSearch } from "../composables/useSearch";
-
-// Neue Child-Komponente
 import SongItem from "../components/SongItem.vue";
 
 const router = useRouter();
@@ -52,18 +46,18 @@ const size = 5;
 const serverError = ref("");
 
 const activeQuery = computed(() => (searchState.query || "").trim());
-const selectedGenres = computed(() => searchState.genres);
 
-// Single-Play-Steuerung (wird an Items durchgereicht)
 const currentPlayingId = ref(null);
-const onItemPlaying = (id) => { currentPlayingId.value = id; };
+const onItemPlaying = (id) => {
+  currentPlayingId.value = id;
+};
 
 const fetchCatalog = async () => {
   serverError.value = "";
   try {
     const params = { page: page.value, size };
     if (activeQuery.value.length >= 2) params.q = activeQuery.value;
-    if (selectedGenres.value.length) params.genresCsv = selectedGenres.value.join(",");
+
     const res = await api.get("/api/songs/catalog", { params });
     songs.value = res.data.content || [];
     totalPages.value = res.data.totalPages ?? 0;
@@ -87,11 +81,28 @@ const deleteSong = async (id) => {
   }
 };
 
-const prevPage = async () => { if (page.value > 0) { page.value--; await fetchCatalog(); } };
-const nextPage = async () => { if (page.value < totalPages.value - 1) { page.value++; await fetchCatalog(); } };
-const goToFirst = async () => { page.value = 0; await fetchCatalog(); };
-const goToLast = async () => { page.value = totalPages.value - 1; await fetchCatalog(); };
+const prevPage = async () => {
+  if (page.value > 0) {
+    page.value--;
+    await fetchCatalog();
+  }
+};
+const nextPage = async () => {
+  if (page.value < totalPages.value - 1) {
+    page.value++;
+    await fetchCatalog();
+  }
+};
+const goToFirst = async () => {
+  page.value = 0;
+  await fetchCatalog();
+};
+const goToLast = async () => {
+  page.value = totalPages.value - 1;
+  await fetchCatalog();
+};
 
+// Suche beobachten
 let timer = null;
 watch(activeQuery, () => {
   clearTimeout(timer);
@@ -99,39 +110,38 @@ watch(activeQuery, () => {
   timer = setTimeout(fetchCatalog, 200);
 });
 
-watch(
-    () => [...selectedGenres.value],
-    () => {
-      clearTimeout(timer);
-      page.value = 0;
-      timer = setTimeout(fetchCatalog, 150);
-    }
-);
-
 onMounted(fetchCatalog);
 </script>
 
 <style scoped>
-/* Neu: Seiten-Container mit Randabstand links/rechts */
 .page {
   width: 100%;
   max-width: 1100px;
-  margin: 0 auto;           /* zentriert und Abstand zu Browserrändern */
-  padding: 12px 20px 24px;  /* zusätzlicher Innenabstand */
+  margin: 0 auto;
+  padding: 12px 20px 24px;
 }
 
-h1 { margin: 0 0 14px; }
+h1 {
+  margin: 0 0 14px;
+}
 
-.empty { color:#777; margin: 8px 0 12px; font-style: italic; }
+.vlist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-.vlist { display: flex; flex-direction: column; gap: 12px; }
-
-/* Pagination & Fehlermeldung bleiben wie gehabt */
 .pagination {
-  display: flex; justify-content: center; align-items: center;
-  gap: 10px; margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
 }
-.page-indicator { font-weight: 700; color:#334; }
+.page-indicator {
+  font-weight: 700;
+  color: #334;
+}
 .page-btn {
   padding: 10px 14px;
   border: 1px solid var(--border);
@@ -139,15 +149,32 @@ h1 { margin: 0 0 14px; }
   border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: background .15s, border-color .15s, box-shadow .15s, transform .05s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
 }
-.page-btn:hover { background:#f6f8fb; border-color:#dfe7ee; box-shadow: 0 6px 14px rgba(0,0,0,.06); }
-.page-btn:active { transform: translateY(1px); }
-.page-btn:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
+.page-btn:hover {
+  background: #f6f8fb;
+  border-color: #dfe7ee;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+.page-btn:active {
+  transform: translateY(1px);
+}
+.page-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 
-.server-error { color:#e74c3c; margin-top: 10px; font-weight: 700; text-align: center; }
+.server-error {
+  color: #e74c3c;
+  margin-top: 10px;
+  font-weight: 700;
+  text-align: center;
+}
 
 @media (max-width: 720px) {
-  .page { padding: 10px 14px 20px; }
+  .page {
+    padding: 10px 14px 20px;
+  }
 }
 </style>

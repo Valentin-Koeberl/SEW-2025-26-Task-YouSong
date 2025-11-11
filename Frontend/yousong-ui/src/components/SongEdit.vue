@@ -147,6 +147,7 @@ const customArtistValid = computed(() => {
   return n.length >= 2 && n.length <= 200;
 });
 
+// Version vom Backend behalten (Optimistic Locking)
 const song = ref({
   id: null, title: "", genres: [], length: null, musicData: "", version: 0, artist: null
 });
@@ -303,10 +304,17 @@ const updateSong = async () => {
   }
 
   try {
-    await api.put(`/api/songs/${song.value.id}`, {
-      ...song.value,
+    // Expliziter Payload: version mitschicken, id NICHT im Body
+    const payload = {
+      title: song.value.title,
+      genres: [...song.value.genres],
+      length: song.value.length,
+      version: song.value.version,
+      ...(song.value.musicData ? { musicData: song.value.musicData } : {}),
       artist: { id: numericArtistId }
-    });
+    };
+
+    await api.put(`/api/songs/${song.value.id}`, payload);
     successMessage.value = "Song updated successfully!";
     setTimeout(() => router.push({ name: "songs" }), 900);
   } catch (e) {
