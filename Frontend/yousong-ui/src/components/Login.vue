@@ -23,8 +23,13 @@
             autocomplete="current-password"
             placeholder="••••••••"
         />
-        <button class="ghost" type="button" @click="showPw = !showPw" :aria-pressed="showPw ? 'true' : 'false'">
-          {{ showPw ? 'Hide' : 'Show' }}
+        <button
+            class="ghost"
+            type="button"
+            @click="showPw = !showPw"
+            :aria-pressed="showPw ? 'true' : 'false'"
+        >
+          {{ showPw ? "Hide" : "Show" }}
         </button>
       </div>
 
@@ -39,14 +44,18 @@
 
       <div class="reg">
         <h2 class="reg-title">Create an account</h2>
+
         <label class="lbl">Username</label>
         <input v-model.trim="regUser" class="inp" placeholder="yourname" autocomplete="off" />
+
         <label class="lbl">Password</label>
         <input v-model="regPass" class="inp" type="password" placeholder="Choose a password" autocomplete="new-password" />
+
         <button class="btn" type="button" @click="onRegister" :disabled="regSubmitting">
           <span v-if="regSubmitting">Creating…</span>
           <span v-else>Create account</span>
         </button>
+
         <p v-if="regMsg" class="ok">{{ regMsg }}</p>
         <p v-if="regErr" class="error">{{ regErr }}</p>
       </div>
@@ -80,15 +89,37 @@ function focusPassword() {
   pwRef.value?.focus();
 }
 
-function extractToken(res) {
-  const hdr = res?.headers?.authorization || res?.headers?.Authorization;
-  if (hdr && /^Bearer\s+/i.test(hdr)) return hdr.split(/\s+/)[1];
-  if (res?.data?.token) return res.data.token;
-  return null;
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp("(^|;\\s*)" + name + "=([^;]*)"));
+  return m ? decodeURIComponent(m[2]) : null;
+}
+
+async function ensureCsrfCookie() {
+  try {
+    await api.get("/api/songs/catalog", { params: { page: 0, size: 1 } });
+  } catch {
+    // ignore
+  }
+}
+
+function csrfHeaders() {
+  const token = getCookie("XSRF-TOKEN");
+  return token ? { "X-XSRF-TOKEN": token } : {};
+}
+
+function normalizeLoginError(e) {
+  const status = e?.response?.status;
+  if (status === 401) return "Invalid credentials.";
+  if (status === 403) return "Login blocked (403). Check CSRF/CORS/cookies.";
+  if (status === 415) return "Unsupported media type.";
+  if (!e?.response) return "Backend not reachable. Is the server running?";
+  return "Login failed. Please try again.";
 }
 
 async function onSubmit() {
   error.value = "";
+  regMsg.value = "";
+
   if (!username.value || !password.value) {
     error.value = "Please enter username and password.";
     return;
@@ -96,25 +127,23 @@ async function onSubmit() {
 
   submitting.value = true;
   try {
-    const body = new URLSearchParams();
-    body.append("username", username.value);
-    body.append("password", password.value);
+    await ensureCsrfCookie();
 
-    const res = await api.post("/login", body, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    const body = new URLSearchParams();
+    body.set("username", username.value);
+    body.set("password", password.value);
+
+    await api.post("/login", body, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...csrfHeaders(),
+      },
     });
 
-    const token = extractToken(res);
-    const name = res?.data?.username || username.value;
-
-    authLogin({ username: name, token });
-
+    authLogin({ username: username.value });
     router.push({ name: "songs" });
   } catch (e) {
-    const status = e?.response?.status;
-    if (status === 401) error.value = "Invalid credentials.";
-    else if (status === 415) error.value = "Unsupported media type.";
-    else error.value = "Login failed. Please try again.";
+    error.value = normalizeLoginError(e);
   } finally {
     submitting.value = false;
   }
@@ -123,16 +152,22 @@ async function onSubmit() {
 async function onRegister() {
   regErr.value = "";
   regMsg.value = "";
+  error.value = "";
+
   if (!regUser.value || !regPass.value) {
     regErr.value = "Please enter a username and password.";
     return;
   }
+
   regSubmitting.value = true;
   try {
-    await api.post("/api/users", {
-      username: regUser.value,
-      password: regPass.value,
-    });
+    await ensureCsrfCookie();
+
+    await api.post(
+        "/api/users",
+        { username: regUser.value, password: regPass.value },
+        { headers: { ...csrfHeaders() } }
+    );
 
     regMsg.value = "Account created! Signing you in…";
 
@@ -143,6 +178,8 @@ async function onRegister() {
     const status = e?.response?.status;
     if (status === 409) regErr.value = "Username already exists.";
     else if (status === 400) regErr.value = e?.response?.data?.message || "Validation failed.";
+    else if (status === 403) regErr.value = "Request blocked (403). Check CSRF/CORS/cookies.";
+    else if (!e?.response) regErr.value = "Backend not reachable. Is the server running?";
     else regErr.value = "Registration failed.";
   } finally {
     regSubmitting.value = false;

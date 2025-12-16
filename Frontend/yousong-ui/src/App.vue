@@ -37,24 +37,30 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "./composables/useAuth";
 import { useSearch } from "./composables/useSearch";
 
 const router = useRouter();
-const { state, isLoggedIn, logout } = useAuth();
+const { state, isLoggedIn, logout, refreshSession } = useAuth();
 const { state: searchState } = useSearch();
 
 const username = computed(() => state.username || "Guest");
 
-function onLogout() {
-  logout();
+onMounted(() => {
+  // Synchronisiert Frontend-State mit Backend-Session (JSESSIONID)
+  refreshSession();
+});
+
+async function onLogout() {
+  await logout();
   router.push({ name: "login" });
 }
 </script>
 
 <style>
+/* dein CSS bleibt unverändert */
 :root {
   --brand: #42b983;
   --ink: #222;

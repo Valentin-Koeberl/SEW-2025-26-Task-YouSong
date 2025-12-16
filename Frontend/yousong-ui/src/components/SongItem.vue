@@ -38,7 +38,7 @@
           <path d="M8 5v14l11-7z" fill="currentColor"/>
         </svg>
         <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/>
+          <path d="M6 5h4v14H6zM14 5h4v14h-4V5z" fill="currentColor"/>
         </svg>
       </button>
 
@@ -59,9 +59,14 @@
         <span class="t">{{ formatTime(duration) }}</span>
       </div>
 
+      <!-- Wichtig für Session/Cookies über Cross-Origin:
+           - absolute URL (Backend-Origin)
+           - crossorigin="use-credentials" damit Cookies mitgehen
+      -->
       <audio
           ref="audioEl"
-          :src="`/api/songs/${song.id}/music`"
+          :src="audioSrc"
+          crossorigin="use-credentials"
           preload="metadata"
           @timeupdate="onTimeUpdate"
           @loadedmetadata="onLoadedMeta"
@@ -90,6 +95,12 @@ const seeking = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 
+// API Base URL (muss zu deinem Backend zeigen)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+
+// Audio-URL absolut bauen, damit Cookies zur Backend-Origin passen
+const audioSrc = computed(() => `${API_BASE}/api/songs/${props.song.id}/music`);
+
 // Wenn ein anderes Item spielt, pausieren
 watch(() => props.currentPlayingId, (now) => {
   if (now !== props.song.id && isPlaying.value && audioEl.value) {
@@ -100,6 +111,7 @@ watch(() => props.currentPlayingId, (now) => {
 const togglePlay = () => {
   const el = audioEl.value;
   if (!el) return;
+
   if (isPlaying.value) {
     el.pause();
   } else {
@@ -111,14 +123,26 @@ const togglePlay = () => {
 const onTimeUpdate = () => {
   if (!seeking.value) currentTime.value = Math.floor(audioEl.value?.currentTime || 0);
 };
-const onLoadedMeta = () => { duration.value = Math.floor(audioEl.value?.duration || 0); };
-const onEnded = () => { isPlaying.value = false; currentTime.value = 0; };
-const onPlay = () => { isPlaying.value = true; };
-const onPause = () => { isPlaying.value = false; };
+const onLoadedMeta = () => {
+  duration.value = Math.floor(audioEl.value?.duration || 0);
+};
+const onEnded = () => {
+  isPlaying.value = false;
+  currentTime.value = 0;
+};
+const onPlay = () => {
+  isPlaying.value = true;
+};
+const onPause = () => {
+  isPlaying.value = false;
+};
 const onSeek = (e) => {
-  const el = audioEl.value; if (!el) return;
+  const el = audioEl.value;
+  if (!el) return;
   const val = Number(e.target.value);
-  el.currentTime = val; currentTime.value = val; seeking.value = false;
+  el.currentTime = val;
+  currentTime.value = val;
+  seeking.value = false;
 };
 
 const formatTime = (sec) => {

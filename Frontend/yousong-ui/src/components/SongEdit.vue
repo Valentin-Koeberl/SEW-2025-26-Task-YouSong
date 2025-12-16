@@ -93,7 +93,14 @@
           <input type="file" accept="audio/*" @change="onFileChange" />
 
           <audio v-if="song.musicData" controls :src="song.musicData"></audio>
-          <audio v-else-if="song.id" controls :src="`/api/songs/${song.id}/music`"></audio>
+
+          <!-- Für Session über Cross-Origin: absolute URL + use-credentials -->
+          <audio
+              v-else-if="song.id"
+              controls
+              :src="audioSrc"
+              crossorigin="use-credentials"
+          ></audio>
 
           <div class="actions">
             <button type="submit" class="btn primary" :disabled="submitting">Save Changes</button>
@@ -105,7 +112,10 @@
 
         <div v-else class="error-box">
           <p class="server-error">{{ serverError }}</p>
-          <details v-if="debugJson"><summary>Details</summary><pre>{{ debugJson }}</pre></details>
+          <details v-if="debugJson">
+            <summary>Details</summary>
+            <pre>{{ debugJson }}</pre>
+          </details>
           <button class="btn" @click="goBack">Back to list</button>
         </div>
       </template>
@@ -151,8 +161,13 @@ const customArtistValid = computed(() => {
 const song = ref({
   id: null, title: "", genres: [], length: null, musicData: "", version: 0, artist: null
 });
+
 const genreDraft = ref("");
 const genreRef = ref(null);
+
+// Backend-Base für Audio (Session/Cookies)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const audioSrc = computed(() => (song.value?.id ? `${API_BASE}/api/songs/${song.value.id}/music` : ""));
 
 function commitGenre(allowEmpty = false) {
   const raw = genreDraft.value.trim();
@@ -216,13 +231,16 @@ const loadArtists = async () => {
 };
 
 const loadSong = async () => {
-  serverError.value = ""; debugJson.value = "";
+  serverError.value = "";
+  debugJson.value = "";
+
   const id = getNumericId();
   if (Number.isNaN(id)) {
     serverError.value = "Invalid song id in route.";
     debugJson.value = JSON.stringify({ routeParam: route.params.id }, null, 2);
     return;
   }
+
   try {
     const res = await api.get(`/api/songs/${id}`);
     song.value = normalizeSong(res.data);
@@ -230,17 +248,22 @@ const loadSong = async () => {
   } catch (e) {
     const status = e?.response?.status;
     const data = e?.response?.data;
-    debugJson.value = JSON.stringify({ status, data, message: e?.message, urlTried: `/api/songs/${id}` }, null, 2);
+    debugJson.value = JSON.stringify(
+        { status, data, message: e?.message, urlTried: `/api/songs/${id}` },
+        null,
+        2
+    );
+
     if (status === 404) serverError.value = "Song not found (404). It may have been deleted.";
-    else if (status === 401) serverError.value = "Please login to load this song (401).";
-    else if (status === 403) serverError.value = "Access to this song is forbidden (403).";
+    else if (status === 401 || status === 403) serverError.value = "Please login to load this song.";
     else if (!e.response) serverError.value = "Backend is not reachable. Is the server running?";
     else serverError.value = "Could not load song.";
   }
 };
 
 const onFileChange = (e) => {
-  const file = e.target.files[0]; if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = () => (song.value.musicData = reader.result);
   reader.readAsDataURL(file);
@@ -253,22 +276,28 @@ const onArtistChange = () => {
 };
 
 const createArtist = async () => {
-  customArtistError.value = ""; customArtistOk.value = "";
+  customArtistError.value = "";
+  customArtistOk.value = "";
+
   const name = customArtistName.value.trim();
   if (!(name.length >= 2 && name.length <= 200)) {
     customArtistError.value = "Please enter a valid artist name (2–200 chars).";
     return;
   }
+
   creatingArtist.value = true;
   try {
     const res = await api.post("/api/artists", { name, description: "" });
     const newArtist = res.data;
+
     artists.value = [...artists.value, newArtist];
     artistId.value = newArtist.id;
+
     customArtistName.value = "";
     customArtistOk.value = "Artist created and selected.";
   } catch (e) {
     const status = e?.response?.status;
+
     if (status === 409) {
       await loadArtists();
       const found = artists.value.find(a => a.name?.toLowerCase() === name.toLowerCase());
@@ -280,7 +309,7 @@ const createArtist = async () => {
       }
     } else if (status === 400) {
       customArtistError.value = e?.response?.data?.message || "Validation failed.";
-    } else if (status === 401) {
+    } else if (status === 401 || status === 403) {
       customArtistError.value = "Please login to create artists.";
     } else {
       customArtistError.value = "Failed to create artist.";
@@ -291,10 +320,15 @@ const createArtist = async () => {
 };
 
 const updateSong = async () => {
-  serverError.value = ""; debugJson.value = ""; submitting.value = true;
+  serverError.value = "";
+  debugJson.value = "";
+  submitting.value = true;
 
   await $v.value.$validate();
-  if ($v.value.$invalid) { submitting.value = false; return; }
+  if ($v.value.$invalid) {
+    submitting.value = false;
+    return;
+  }
 
   const numericArtistId = Number(artistId.value);
   if (!Number.isFinite(numericArtistId)) {
@@ -304,7 +338,7 @@ const updateSong = async () => {
   }
 
   try {
-    // Expliziter Payload: version mitschicken, id NICHT im Body
+    // Payload: version mitschicken, id NICHT im Body
     const payload = {
       title: song.value.title,
       genres: [...song.value.genres],
@@ -315,13 +349,16 @@ const updateSong = async () => {
     };
 
     await api.put(`/api/songs/${song.value.id}`, payload);
+
     successMessage.value = "Song updated successfully!";
     setTimeout(() => router.push({ name: "songs" }), 900);
   } catch (e) {
-    const status = e?.response?.status; const data = e?.response?.data;
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+
     debugJson.value = JSON.stringify({ status, data, message: e?.message }, null, 2);
-    if (status === 401) serverError.value = "Please login to update songs.";
-    else if (status === 403) serverError.value = "You can only edit your own songs.";
+
+    if (status === 401 || status === 403) serverError.value = "Please login to update songs.";
     else if (status === 409) serverError.value = "⚠️ Song wurde bereits von jemand anderem geändert. Bitte Seite neu laden!";
     else if (status === 400) serverError.value = data?.message || "Update failed due to validation. Please check your inputs.";
     else if (!e.response) serverError.value = "Backend is not reachable. Is the server running?";

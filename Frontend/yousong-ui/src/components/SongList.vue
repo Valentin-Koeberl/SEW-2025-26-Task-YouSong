@@ -61,23 +61,30 @@ const fetchCatalog = async () => {
     const res = await api.get("/api/songs/catalog", { params });
     songs.value = res.data.content || [];
     totalPages.value = res.data.totalPages ?? 0;
-  } catch (e) {
+  } catch {
     serverError.value = "Could not load songs.";
   }
 };
 
-const editSong = (id) => router.push({ name: "edit", params: { id } });
+const editSong = (id) =>
+    router.push({ name: "edit", params: { id } });
+
 const deleteSong = async (id) => {
   if (!confirm("Are you sure you want to delete this song?")) return;
+
   serverError.value = "";
   try {
     await api.delete(`/api/songs/${id}`);
     await fetchCatalog();
   } catch (e) {
     const status = e?.response?.status;
-    if (status === 401) serverError.value = "Please login to delete songs.";
-    else if (status === 403) serverError.value = "You can only delete your own songs.";
-    else serverError.value = "Failed to delete song.";
+
+    // Session-Auth: 401 ODER 403 = nicht (mehr) eingeloggt
+    if (status === 401 || status === 403) {
+      serverError.value = "Please login to delete songs.";
+    } else {
+      serverError.value = "Failed to delete song.";
+    }
   }
 };
 
@@ -87,16 +94,19 @@ const prevPage = async () => {
     await fetchCatalog();
   }
 };
+
 const nextPage = async () => {
   if (page.value < totalPages.value - 1) {
     page.value++;
     await fetchCatalog();
   }
 };
+
 const goToFirst = async () => {
   page.value = 0;
   await fetchCatalog();
 };
+
 const goToLast = async () => {
   page.value = totalPages.value - 1;
   await fetchCatalog();
@@ -138,10 +148,12 @@ h1 {
   gap: 10px;
   margin-top: 20px;
 }
+
 .page-indicator {
   font-weight: 700;
   color: #334;
 }
+
 .page-btn {
   padding: 10px 14px;
   border: 1px solid var(--border);
@@ -151,14 +163,17 @@ h1 {
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
 }
+
 .page-btn:hover {
   background: #f6f8fb;
   border-color: #dfe7ee;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
 }
+
 .page-btn:active {
   transform: translateY(1px);
 }
+
 .page-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

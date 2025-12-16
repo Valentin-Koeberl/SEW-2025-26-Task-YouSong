@@ -1,36 +1,41 @@
 import { reactive, computed } from "vue";
+import api from "../services/api";
 
 const state = reactive({
-    username: localStorage.getItem("username") || null,
-    token: localStorage.getItem("token") || null,
+    username: "",
+    hydrated: false, // damit App weiß, dass wir einmal geprüft haben
 });
 
-function login({ username, token }) {
-    state.username = username || null;
-    state.token = token || null;
-    if (username) localStorage.setItem("username", username); else localStorage.removeItem("username");
-    if (token) localStorage.setItem("token", token); else localStorage.removeItem("token");
+const isLoggedIn = computed(() => !!state.username);
+
+async function refreshSession() {
+    try {
+        const res = await api.get("/api/auth/me");
+        state.username = res?.data?.username || "";
+    } catch {
+        state.username = "";
+    } finally {
+        state.hydrated = true;
+    }
 }
 
-function logout() {
-    state.username = null;
-    state.token = null;
-    localStorage.removeItem("username");
-    localStorage.removeItem("token");
+function login(payload) {
+    // nach erfolgreichem POST /login
+    state.username = payload?.username || "";
+    state.hydrated = true;
 }
 
-function setUsername(username) {
-    state.username = username || null;
-    if (username) localStorage.setItem("username", username);
-    else localStorage.removeItem("username");
+async function logout() {
+    try {
+        await api.post("/logout");
+    } catch {
+        // ignore
+    } finally {
+        state.username = "";
+        state.hydrated = true;
+    }
 }
 
 export function useAuth() {
-    return {
-        state,
-        isLoggedIn: computed(() => !!state.token),
-        login,
-        logout,
-        setUsername,
-    };
+    return { state, isLoggedIn, login, logout, refreshSession };
 }

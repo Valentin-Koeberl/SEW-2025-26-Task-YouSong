@@ -1,40 +1,27 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "",
-    timeout: 10000,
+    baseURL: (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, ""),
+    withCredentials: true,
 });
 
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("token");
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        const method = (config.method || "get").toUpperCase();
-        const fullUrl = (config.baseURL || "") + (config.url || "");
-        console.debug("[API] ->", method, fullUrl, { params: config.params, hasBody: !!config.data });
-        return config;
-    },
-    (error) => {
-        console.error("[API][request error]", error);
-        return Promise.reject(error);
-    }
-);
+function getCookie(name) {
+    const m = document.cookie.match(new RegExp("(^|;\\s*)" + name + "=([^;]*)"));
+    return m ? decodeURIComponent(m[2]) : null;
+}
 
-api.interceptors.response.use(
-    (res) => {
-        console.debug("[API] <-", res.status, res.config?.url);
-        return res;
-    },
-    (error) => {
-        if (error.response) {
-            console.error("[API][response error]", error.response.status, error.config?.url, error.response.data);
-        } else if (error.request) {
-            console.error("[API][network error] No response", error.config?.url, error.message);
-        } else {
-            console.error("[API][setup error]", error.message);
+api.interceptors.request.use((config) => {
+    const method = (config.method || "get").toLowerCase();
+    const needsCsrf = ["post", "put", "patch", "delete"].includes(method);
+
+    if (needsCsrf) {
+        const token = getCookie("XSRF-TOKEN");
+        if (token) {
+            config.headers = config.headers || {};
+            config.headers["X-XSRF-TOKEN"] = token;
         }
-        return Promise.reject(error);
     }
-);
+    return config;
+});
 
 export default api;

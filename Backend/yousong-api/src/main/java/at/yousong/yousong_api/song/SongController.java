@@ -153,10 +153,20 @@ public class SongController {
             existing.setMusicData(updatedSong.getMusicData());
             existing.setArtist(artist);
 
+            // ✅ Genres aktualisieren
+            List<String> newGenres = Optional.ofNullable(updatedSong.getGenres())
+                    .orElseGet(ArrayList::new);
+            // Variante 1: komplette Liste ersetzen
+            existing.setGenres(newGenres);
+            // (oder Variante 2:)
+            // existing.getGenres().clear();
+            // existing.getGenres().addAll(newGenres);
+
             Song saved = songRepository.saveAndFlush(existing);
             return ResponseEntity.ok(toDto(saved));
         }).orElse(ResponseEntity.notFound().build());
     }
+
 
     // 🔹 Song löschen
     @DeleteMapping("/{id}")

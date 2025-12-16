@@ -20,9 +20,11 @@ public class BenutzerDataLoader implements CommandLineRunner {
     @Override
     public void run(String... args) {
         String username = "hugo";
-        if (!benutzerRepository.existsByUsernameIgnoreCase(username)) {
-            String hash = encoder.encode("password");
-            benutzerRepository.save(new Benutzer(null, username, hash));
-        }
+        String hash = encoder.encode("password");
+        benutzerRepository.findByUsername(username)
+                .ifPresentOrElse(user -> {
+                    user.setPasswordHash(hash); // reset to known demo password
+                    benutzerRepository.save(user);
+                }, () -> benutzerRepository.save(new Benutzer(null, username, hash)));
     }
 }

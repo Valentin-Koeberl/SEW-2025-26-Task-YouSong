@@ -166,6 +166,7 @@ function commitGenre(allowEmpty = false) {
   }
   genreDraft.value = "";
 }
+
 function onGenreKeydown(e) {
   if (e.isComposing) return; // IME-Schutz
   if (e.key === "," || e.code === "Comma") {
@@ -173,6 +174,7 @@ function onGenreKeydown(e) {
     commitGenre();
   }
 }
+
 function removeGenre(g) {
   song.value.genres = song.value.genres.filter(x => x !== g);
 }
@@ -219,20 +221,25 @@ const createArtist = async () => {
   customArtistError.value = "";
   customArtistOk.value = "";
   const name = customArtistName.value.trim();
+
   if (!customArtistValid.value) {
     customArtistError.value = "Please enter a valid artist name (2–200 chars).";
     return;
   }
+
   creatingArtist.value = true;
   try {
     const res = await api.post("/api/artists", { name, description: "" });
     const newArtist = res.data;
+
     artists.value = [...artists.value, newArtist];
     artistId.value = newArtist.id;
+
     customArtistName.value = "";
     customArtistOk.value = "Artist created and selected.";
   } catch (e) {
     const status = e?.response?.status;
+
     if (status === 409) {
       await loadArtists();
       const found = artists.value.find(a => a.name?.toLowerCase() === name.toLowerCase());
@@ -244,7 +251,7 @@ const createArtist = async () => {
       }
     } else if (status === 400) {
       customArtistError.value = e?.response?.data?.message || "Validation failed.";
-    } else if (status === 401) {
+    } else if (status === 401 || status === 403) {
       customArtistError.value = "Please login to create artists.";
     } else {
       customArtistError.value = "Failed to create artist.";
@@ -265,13 +272,11 @@ const createSong = async () => {
   }
 
   await $v.value.$validate();
-
   if (!validArtistSelected.value) return;
   if ($v.value.$invalid) return;
 
   submitting.value = true;
   try {
-    // Expliziter Payload OHNE id/version
     const payload = {
       title: song.value.title,
       genres: [...song.value.genres],
@@ -300,7 +305,8 @@ const createSong = async () => {
     }, 900);
   } catch (e) {
     const status = e?.response?.status;
-    if (status === 401) {
+
+    if (status === 401 || status === 403) {
       serverError.value = "Please login to create songs.";
     } else if (status === 400) {
       serverError.value =
@@ -318,7 +324,9 @@ const createSong = async () => {
 const goBack = () => router.push({ name: "songs" });
 
 onMounted(() => {
-  if (isLoggedIn.value) loadArtists();
+  // Artists sind bei dir GET /api/artists permitAll -> daher immer laden.
+  // Macht UX besser (Dropdown ist gefüllt, selbst wenn man nicht eingeloggt ist).
+  loadArtists();
 });
 </script>
 

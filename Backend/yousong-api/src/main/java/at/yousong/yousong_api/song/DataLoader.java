@@ -6,6 +6,7 @@ import at.yousong.yousong_api.user.Benutzer;
 import at.yousong.yousong_api.user.BenutzerRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,19 +19,25 @@ public class DataLoader implements CommandLineRunner {
     private final SongRepository songRepository;
     private final ArtistRepository artistRepository;
     private final BenutzerRepository benutzerRepository;
+    private final BCryptPasswordEncoder encoder;
 
-    public DataLoader(SongRepository songRepository, ArtistRepository artistRepository, BenutzerRepository benutzerRepository) {
+    public DataLoader(SongRepository songRepository,
+                      ArtistRepository artistRepository,
+                      BenutzerRepository benutzerRepository,
+                      BCryptPasswordEncoder encoder) {
         this.songRepository = songRepository;
         this.artistRepository = artistRepository;
         this.benutzerRepository = benutzerRepository;
+        this.encoder = encoder;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
-        if (songRepository.count() > 0) {
-            return;
-        }
+        if (songRepository.count() > 0) return;
+
+        // ✅ sicherstellen, dass der Owner existiert
+        Benutzer owner = getOrCreateUser("hugo", "hugo"); // pw: "hugo" (ändern wie du willst)
 
         Artist ed      = getOrCreateArtist("Ed Sheeran", "UK singer-songwriter");
         Artist queen   = getOrCreateArtist("Queen", "Legendary British rock band");
@@ -42,8 +49,6 @@ public class DataLoader implements CommandLineRunner {
         Artist adele   = getOrCreateArtist("Adele", "English singer and songwriter");
         Artist coldplay= getOrCreateArtist("Coldplay", "British rock band");
         Artist eminem  = getOrCreateArtist("Eminem", "American rapper and producer");
-
-        Benutzer owner = benutzerRepository.findByUsername("hugo").orElse(null);
 
         add("Shape of You",           List.of("Pop"),                233, ed,      "sandbreaker-379630.mp3", owner);
         add("Perfect",                List.of("Pop"),                263, ed,      "sandbreaker-379630.mp3", owner);
@@ -78,16 +83,19 @@ public class DataLoader implements CommandLineRunner {
         add("The Real Slim Shady",    List.of("Hip Hop","Rap"),      284, eminem,  "eminem_the_real_slim_shady.mp3", owner);
     }
 
+    private Benutzer getOrCreateUser(String username, String rawPassword) {
+        return benutzerRepository.findByUsername(username)
+                .orElseGet(() -> {
+                    Benutzer u = new Benutzer();
+                    u.setUsername(username);
+                    u.setPasswordHash(encoder.encode(rawPassword)); // ✅ BCrypt!
+                    return benutzerRepository.save(u);
+                });
+    }
+
     private void add(String title, List<String> genres, int lengthSeconds, Artist artist, String fileName, Benutzer owner) {
-        songRepository.save(new Song(
-                null,
-                title,
-                genres,
-                lengthSeconds,
-                artist,
-                fileName,
-                owner
-        ));
+        Song s = new Song(null, title, genres, lengthSeconds, artist, fileName, owner);
+        songRepository.save(s);
     }
 
     private Artist getOrCreateArtist(String name, String description) {

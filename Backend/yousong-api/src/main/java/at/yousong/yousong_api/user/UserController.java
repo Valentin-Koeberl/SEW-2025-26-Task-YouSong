@@ -26,8 +26,10 @@ public class UserController {
     public static class CreateUserRequest {
         @NotBlank @Size(min = 3, max = 100)
         public String username;
+        // Accept plain password, but also allow legacy "passwordHash" field as alias from older clients
         @NotBlank @Size(min = 4, max = 100)
         public String password;
+        public String passwordHash; // optional alias; if present we use it as plain text input
     }
 
     @PostMapping
@@ -36,7 +38,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("message", "Username already exists"));
         }
-        String hash = encoder.encode(req.password);
+        String raw = req.password != null ? req.password : req.passwordHash;
+        String hash = encoder.encode(raw);
         Benutzer saved = benutzerRepository.save(new Benutzer(null, req.username, hash));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("id", saved.getId(), "username", saved.getUsername()));
